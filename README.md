@@ -127,5 +127,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build-setup.ps1 -Test
 
 See [installer/README.md](installer/README.md) for isolated installation checks, packaging details, and compiler licensing.
 
-Holiday Timer's source code is distributed under the [MIT License](LICENSE). The bundled Inter Display font comes from the official [Inter 4.1 release](https://github.com/rsms/inter/releases/tag/v4.1) and remains under its separate [SIL Open Font License](assets/fonts/LICENSE.txt). The Inno Setup build tool has its own licence as described in the installer documentation.
+Holiday Timer's source code is distributed under the [MIT License](https://opensource.org/license/mit). The repository includes `LICENSE`; packaged builds include `LICENSE.txt`. The bundled Inter Display font comes from the official [Inter 4.1 release](https://github.com/rsms/inter/releases/tag/v4.1) and remains under its separate [SIL Open Font License](https://openfontlicense.org/open-font-license-official-text/), included as `Inter-LICENSE.txt` in packaged builds. The Inno Setup build tool has its own licence as described in the installer documentation.
 
