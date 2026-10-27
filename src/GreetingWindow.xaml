@@ -1,0 +1,14 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Congratulations! — Holiday Timer" Width="1000" Height="700" WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="True" Background="Transparent" ShowInTaskbar="False" Topmost="True" Foreground="White">
+  <Grid>
+    <Canvas x:Name="CelebrationCanvas" IsHitTestVisible="False" ClipToBounds="True"/>
+    <StackPanel x:Name="GreetingMessage" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="800" Margin="36" TextElement.Foreground="{DynamicResource GreetingText}" Effect="{DynamicResource GreetingTextShadowEffect}">
+      <TextBlock x:Name="GreetingHeading" Text="Congratulations!" FontSize="48" FontWeight="SemiBold" TextAlignment="Center"/>
+      <TextBlock x:Name="GreetingIntro" Text="Your holiday is getting closer." FontSize="20" TextAlignment="Center" Margin="0,10,0,10"/>
+      <TextBlock x:Name="GreetingNumber" Text="30" FontFamily="{DynamicResource CountdownFont}" FontSize="96" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{DynamicResource GreetingNumberText}"/>
+      <TextBlock x:Name="GreetingUnit" Text="days to go until" FontSize="20" TextAlignment="Center" Margin="0,0,0,10"/>
+      <TextBlock x:Name="GreetingHoliday" Text="My holiday" FontSize="30" FontWeight="SemiBold" TextAlignment="Center" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" MaxHeight="80"/>
+      <TextBlock x:Name="GreetingTarget" Text="13 November 2026" FontSize="14" TextAlignment="Center" Margin="0,12,0,0"/>
+    </StackPanel>
+    <Button x:Name="GreetingDismiss" Content="Continue  ·  Esc to close" Background="{DynamicResource Accent}" Foreground="{DynamicResource OnAccent}" BorderThickness="0" Padding="22,12" FontSize="14" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,32" IsDefault="True" IsCancel="True"/>
+  </Grid>
+</Window>

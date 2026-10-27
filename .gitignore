@@ -1,0 +1,7 @@
+dist/
+tools/
+*.exe
+*.log
+*.user
+.env
+.env.*

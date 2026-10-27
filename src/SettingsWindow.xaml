@@ -1,0 +1,237 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ Title="Holiday Timer — Settings" Width="980" Height="740" MinWidth="520" MinHeight="450" WindowStartupLocation="CenterScreen" WindowStyle="None" AllowsTransparency="False" ResizeMode="CanResize" Background="Transparent" Foreground="{DynamicResource BodyText}">
+  <Window.Resources>
+    <BooleanToVisibilityConverter x:Key="MusicDetailsVisibility"/>
+    <Style TargetType="TextBlock"><Setter Property="Effect" Value="{DynamicResource PanelTextShadowEffect}"/></Style>
+    <Style TargetType="Label" BasedOn="{StaticResource {x:Type Label}}"><Setter Property="Effect" Value="{DynamicResource PanelTextShadowEffect}"/></Style>
+    <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}"><Setter Property="Effect" Value="{DynamicResource PanelTextShadowEffect}"/></Style>
+    <Style TargetType="TabItem">
+      <Setter Property="Foreground" Value="{DynamicResource MutedText}"/><Setter Property="FontSize" Value="13"/><Setter Property="Padding" Value="12,10"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabItem">
+        <Grid Background="Transparent" Margin="0,0,4,0">
+          <Border x:Name="TabSurface" CornerRadius="7,7,0,0" Background="Transparent" Padding="{TemplateBinding Padding}"><ContentPresenter ContentSource="Header" RecognizesAccessKey="True" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+          <Border x:Name="TabAccent" Height="2" Background="{DynamicResource Accent}" VerticalAlignment="Bottom" Visibility="Collapsed"/>
+          <Border x:Name="TabFocus" CornerRadius="7" BorderBrush="{DynamicResource Heading}" BorderThickness="1" Margin="2" Visibility="Collapsed" IsHitTestVisible="False"/>
+        </Grid>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="TabSurface" Property="Background" Value="{DynamicResource HoverSurface}"/></Trigger>
+          <Trigger Property="IsSelected" Value="True"><Setter Property="Foreground" Value="{DynamicResource Heading}"/><Setter Property="FontWeight" Value="SemiBold"/><Setter TargetName="TabAccent" Property="Visibility" Value="Visible"/></Trigger>
+          <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="TabFocus" Property="Visibility" Value="Visible"/></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style TargetType="TabControl">
+      <Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabControl">
+        <Grid KeyboardNavigation.TabNavigation="Local">
+          <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+          <Grid><Border BorderBrush="{DynamicResource Line}" BorderThickness="0,0,0,1"/><TabPanel IsItemsHost="True" KeyboardNavigation.TabIndex="1"/></Grid>
+          <ContentPresenter Grid.Row="1" x:Name="PART_SelectedContentHost" Margin="0,16,0,0" ContentSource="SelectedContent" KeyboardNavigation.TabIndex="2"/>
+        </Grid>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+  </Window.Resources>
+  <Border x:Name="SettingsSurface" Background="{DynamicResource PanelSurface}">
+    <Grid>
+      <Grid.RowDefinitions><RowDefinition Height="38"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+      <Grid Margin="24,0,8,0">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <Border x:Name="SettingsTitleDrag" Background="Transparent"><StackPanel Orientation="Horizontal" VerticalAlignment="Center"><Ellipse Width="9" Height="9" Fill="{DynamicResource Accent}" Margin="0,0,9,0"/><TextBlock Text="HOLIDAY TIMER" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource MutedText}"/></StackPanel></Border>
+        <Button x:Name="SettingsMinimize" Grid.Column="1" Background="Transparent" BorderThickness="0" Padding="12,10" ToolTip="Minimize" AutomationProperties.Name="Minimize settings"><Path Data="M 0 0 L 10 0" Stroke="{DynamicResource MutedText}" StrokeThickness="1.2"/></Button>
+        <Button x:Name="SettingsClose" Grid.Column="2" Background="Transparent" BorderThickness="0" Padding="12,10" ToolTip="Close settings" AutomationProperties.Name="Close settings"><Path Data="M 0 0 L 9 9 M 9 0 L 0 9" Stroke="{DynamicResource MutedText}" StrokeThickness="1.2"/></Button>
+      </Grid>
+      <Grid Grid.Row="1" Margin="28,10,28,20">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <StackPanel Margin="0,0,0,18"><TextBlock Text="Your countdown." FontSize="28" FontWeight="SemiBold" Foreground="{DynamicResource Heading}"/><TextBlock Text="Set the moment. Shape the view." FontSize="13" Foreground="{DynamicResource MutedText}" Margin="0,4,0,0"/></StackPanel>
+        <Grid x:Name="WorkspaceGrid" Grid.Row="1">
+          <Grid.ColumnDefinitions><ColumnDefinition x:Name="LeftColumn" Width="*"/><ColumnDefinition x:Name="GapColumn" Width="28"/><ColumnDefinition x:Name="RightColumn" Width="260"/></Grid.ColumnDefinitions>
+          <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+          <ScrollViewer x:Name="SettingsScroller" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,8,0">
+            <TabControl x:Name="SettingsTabs" AutomationProperties.Name="Countdown settings sections">
+              <TabItem x:Name="CountdownTab" Header="_Countdown" AutomationProperties.Name="Countdown settings">
+                <StackPanel x:Name="CountdownSection">
+                  <Label Content="Holiday _name" Target="{Binding ElementName=HolidayName}"/><TextBox x:Name="HolidayName" MaxLength="80" AutomationProperties.Name="Holiday name"/>
+                  <Grid Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="112"/></Grid.ColumnDefinitions>
+                    <StackPanel><Label Content="_Date" Target="{Binding ElementName=HolidayDate}"/><Border Background="{DynamicResource ControlSurface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="8" Padding="6,4"><DatePicker x:Name="HolidayDate" FontSize="14" Padding="3" BorderThickness="0" Background="Transparent" Foreground="{DynamicResource BodyText}" AutomationProperties.Name="Holiday date"/></Border></StackPanel>
+                    <StackPanel Grid.Column="2"><Label Content="_Time · 24h" Target="{Binding ElementName=HolidayTime}"/><TextBox x:Name="HolidayTime" MaxLength="5" Text="09:00" AutomationProperties.Name="Holiday time, hours and minutes"/></StackPanel>
+                  </Grid>
+                  <Grid Margin="0,2,0,0">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBlock Text="Uses your local time zone." Foreground="{DynamicResource MutedText}" FontSize="11" VerticalAlignment="Center"/>
+                    <Button x:Name="PublicHolidayPickerButton" Grid.Column="1" Content="NSW _holidays…" FontSize="11" Padding="3,2" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource Accent}" AutomationProperties.Name="Choose an upcoming NSW public holiday" ToolTip="Choose a NSW public holiday or refresh the latest official dates"/>
+                    <Popup x:Name="PublicHolidayPopup" Placement="Bottom" PlacementTarget="{Binding ElementName=PublicHolidayPickerButton}" AllowsTransparency="True" StaysOpen="False" PopupAnimation="None">
+                      <Border x:Name="PublicHolidayPopupSurface" Width="380" Background="{DynamicResource PopupSurface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="14" Padding="18">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+                          <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="NSW public holidays" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Heading}" VerticalAlignment="Center"/>
+                            <Button x:Name="ClosePublicHolidayPopup" Grid.Column="1" Padding="7" Background="Transparent" BorderThickness="0" ToolTip="Close public holidays" AutomationProperties.Name="Close public holidays"><Path Data="M 0 0 L 9 9 M 9 0 L 0 9" Width="10" Height="10" Stroke="{DynamicResource MutedText}" StrokeThickness="1.3"/></Button>
+                          </Grid>
+                          <TextBlock Text="Choose a holiday, or keep your own date." FontSize="12" Foreground="{DynamicResource MutedText}" TextWrapping="Wrap" Margin="0,7,0,16"/>
+                          <Label Content="_Upcoming public holiday" Target="{Binding ElementName=UpcomingPublicHolidays}"/>
+                          <ComboBox x:Name="UpcomingPublicHolidays" MaxDropDownHeight="320" AutomationProperties.Name="Upcoming NSW public holidays"/>
+                          <TextBlock x:Name="PublicHolidayCoverage" FontSize="11" Foreground="{DynamicResource MutedText}" TextWrapping="Wrap" Margin="0,9,0,0"/>
+                          <Grid Margin="0,15,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Button x:Name="RefreshPublicHolidays" Content="_Refresh holidays" Padding="12,8" AutomationProperties.Name="Refresh NSW public holidays from the NSW Government"/>
+                            <Button x:Name="PublicHolidaySource" Grid.Column="2" Content="NSW Government" FontSize="11" Padding="3,8" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource Accent}" ToolTip="Open the official NSW Government public-holiday page" AutomationProperties.Name="Open the official NSW Government public holiday source"/>
+                          </Grid>
+                          <TextBlock x:Name="PublicHolidayRefreshStatus" Text="Built-in dates are ready offline." FontSize="11" Foreground="{DynamicResource MutedText}" TextWrapping="Wrap" Margin="0,9,0,0" MinHeight="30" AutomationProperties.LiveSetting="Polite"/>
+                          <Grid Margin="0,15,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Button x:Name="EditPublicHoliday" Content="_Edit holiday" HorizontalAlignment="Left" Padding="12,9" AutomationProperties.Name="Edit the selected NSW calendar holiday"/>
+                            <Button x:Name="UsePublicHoliday" Grid.Column="1" Content="Use _holiday" Padding="15,10" Background="{DynamicResource Accent}" Foreground="{DynamicResource OnAccent}" BorderThickness="0" FontWeight="SemiBold" AutomationProperties.Name="Use the selected NSW public holiday as the countdown"/>
+                          </Grid>
+                          <StackPanel x:Name="PublicHolidayEditPanel" Visibility="Collapsed" Margin="0,16,0,0">
+                            <TextBlock Text="Edit calendar holiday" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Heading}"/>
+                            <TextBlock Text="This updates the countdown and workday calendar. Your edit stays after refresh." FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource MutedText}" Margin="0,4,0,8"/>
+                            <Label Content="Holiday name" Target="{Binding ElementName=PublicHolidayEditName}"/>
+                            <TextBox x:Name="PublicHolidayEditName" MaxLength="100" AutomationProperties.Name="Edited holiday name"/>
+                            <Label Content="Holiday date" Target="{Binding ElementName=PublicHolidayEditDate}" Margin="0,8,0,0"/>
+                            <Border Background="{DynamicResource ControlSurface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="8" Padding="6,4"><DatePicker x:Name="PublicHolidayEditDate" FontSize="14" Padding="3" BorderThickness="0" Background="Transparent" Foreground="{DynamicResource BodyText}" AutomationProperties.Name="Edited public holiday date"/></Border>
+                            <TextBlock x:Name="PublicHolidayEditError" Foreground="{DynamicResource ErrorText}" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0" AutomationProperties.LiveSetting="Assertive"/>
+                            <WrapPanel Margin="0,10,0,0"><Button x:Name="SavePublicHolidayEdit" Content="Save edit" Padding="12,8"/><Button x:Name="ResetPublicHolidayEdit" Content="Reset to source" Padding="12,8" Margin="8,0,0,0"/><Button x:Name="CancelPublicHolidayEdit" Content="Cancel" Padding="12,8" Margin="8,0,0,0" Background="Transparent" BorderThickness="0"/></WrapPanel>
+                          </StackPanel>
+                        </StackPanel>
+                        </ScrollViewer>
+                      </Border>
+                    </Popup>
+                  </Grid>
+                  <Label Content="Count down in" Margin="0,12,0,0"/>
+                  <UniformGrid x:Name="UnitChoices" Columns="5"><RadioButton x:Name="UnitDays" GroupName="Units" Content="_Days" FontSize="12" Padding="4,9" Margin="0,0,3,0"/><RadioButton x:Name="UnitWeeks" GroupName="Units" Content="_Weeks" FontSize="12" Padding="4,9" Margin="3,0,3,0"/><RadioButton x:Name="UnitHours" GroupName="Units" Content="_Hours" FontSize="12" Padding="4,9" Margin="3,0,3,0"/><RadioButton x:Name="UnitMinutes" GroupName="Units" Content="_Minutes" FontSize="12" Padding="4,9" Margin="3,0,3,0"/><RadioButton x:Name="UnitSeconds" GroupName="Units" Content="_Seconds" FontSize="12" Padding="4,9" Margin="3,0,0,0"/></UniformGrid>
+                  <ComboBox x:Name="CountdownUnit" Visibility="Collapsed"><ComboBoxItem Content="Days"/><ComboBoxItem Content="Minutes"/><ComboBoxItem Content="Seconds"/><ComboBoxItem Content="Weeks"/><ComboBoxItem Content="Hours"/></ComboBox>
+                  <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,12,0,0" Padding="0,12,0,0"><StackPanel>
+                    <CheckBox x:Name="WorkdayCountdown" Content="Count only wor_kdays" AutomationProperties.Name="Count only workdays and working hours"/>
+                    <TextBlock Text="Skip weekends, NSW public holidays and time outside your shift." FontSize="11" Foreground="{DynamicResource MutedText}" TextWrapping="Wrap" Margin="44,3,0,0"/>
+                    <StackPanel x:Name="WorkdayScheduleDetails" Margin="44,10,0,0" Visibility="Collapsed">
+                      <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <StackPanel><Label Content="Work _start · 24h" Target="{Binding ElementName=WorkStart}"/><TextBox x:Name="WorkStart" MaxLength="5" Text="09:00" AutomationProperties.Name="Work start time, 24 hour HH:mm"/></StackPanel>
+                        <StackPanel Grid.Column="2"><Label Content="Work _finish · 24h" Target="{Binding ElementName=WorkFinish}"/><TextBox x:Name="WorkFinish" MaxLength="5" Text="17:00" AutomationProperties.Name="Work finish time, 24 hour HH:mm"/></StackPanel>
+                      </Grid>
+                      <TextBlock x:Name="WorkScheduleSummary" Text="1 workday = 8 hours · 1 working week = 40 hours" FontSize="11" Foreground="{DynamicResource BodyText}" TextWrapping="Wrap" Margin="0,6,0,0" AutomationProperties.LiveSetting="Polite"/>
+                      <TextBlock Text="Monday–Friday, in your local time zone. Future NSW dates may be estimated." FontSize="11" Foreground="{DynamicResource MutedText}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                    </StackPanel>
+                  </StackPanel></Border>
+                  <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,12,0,0" Padding="0,12,0,0"><StackPanel>
+                    <WrapPanel><CheckBox x:Name="ShowFloating" Content="_Show the floating gadget" Margin="0,5,22,5"/><CheckBox x:Name="AlwaysOnTop" Content="Keep it above other _windows"/></WrapPanel>
+                    <TextBlock Text="Drag the orb anywhere. Your countdown stays in the tray." FontSize="11" Foreground="{DynamicResource MutedText}" Margin="0,3,0,0" TextWrapping="Wrap"/>
+                  </StackPanel></Border>
+                </StackPanel>
+              </TabItem>
+              <TabItem x:Name="AppearanceTab" Header="_Appearance" AutomationProperties.Name="Appearance settings">
+                <StackPanel x:Name="AppearanceSection">
+                  <Label Content="Orb _effect" Target="{Binding ElementName=OrbEffectCombo}"/><ComboBox x:Name="OrbEffectCombo" AutomationProperties.Name="Orb effect" MaxDropDownHeight="420"/>
+                  <TextBlock x:Name="EffectDescription" FontSize="11" Foreground="{DynamicResource MutedText}" TextWrapping="Wrap" Margin="0,5,0,0"/>
+                  <StackPanel x:Name="EffectIntensityDetails" Margin="0,10,0,0" Visibility="Collapsed">
+                    <Grid><Label Content="Motion _intensity" Target="{Binding ElementName=EffectIntensitySlider}"/><TextBlock x:Name="EffectIntensityValue" HorizontalAlignment="Right" FontSize="12" Foreground="{DynamicResource MutedText}"/></Grid>
+                    <Slider x:Name="EffectIntensitySlider" Minimum="0" Maximum="100" Value="65" SmallChange="5" LargeChange="10" Margin="0,1,0,0" AutomationProperties.Name="Effect motion intensity"/>
+                    <Grid><TextBlock Text="Calm" FontSize="11" Foreground="{DynamicResource MutedText}"/><TextBlock Text="Dynamic" HorizontalAlignment="Right" FontSize="11" Foreground="{DynamicResource MutedText}"/></Grid>
+                  </StackPanel>
+                  <Grid x:Name="AppearancePaletteRow" Margin="0,14,0,0">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="3*"/></Grid.ColumnDefinitions>
+                    <StackPanel><Label Content="Surface"/><UniformGrid Columns="2"><RadioButton x:Name="AppearanceDark" GroupName="Appearance" Content="Dark" Padding="8,9" Margin="0,0,3,0" AutomationProperties.Name="Dark glass appearance"/><RadioButton x:Name="AppearanceLight" GroupName="Appearance" Content="Light" Padding="8,9" Margin="3,0,0,0" AutomationProperties.Name="Light glass appearance"/></UniformGrid></StackPanel>
+                    <StackPanel Grid.Column="2"><Label Content="Colour scheme"/><UniformGrid Columns="3">
+                      <RadioButton x:Name="ThemeBeach" GroupName="Themes" Padding="4,9" Margin="0,0,3,0" AutomationProperties.Name="Aurora colour scheme"><StackPanel Orientation="Horizontal"><Ellipse Width="7" Height="7" Fill="#80BCFF" Margin="0,0,5,0"/><TextBlock Text="Aurora" FontSize="12"/></StackPanel></RadioButton>
+                      <RadioButton x:Name="ThemeSunset" GroupName="Themes" Padding="4,9" Margin="3,0,3,0" AutomationProperties.Name="Violet colour scheme"><StackPanel Orientation="Horizontal"><Ellipse Width="7" Height="7" Fill="#BDA3FF" Margin="0,0,5,0"/><TextBlock Text="Violet" FontSize="12"/></StackPanel></RadioButton>
+                      <RadioButton x:Name="ThemeFestive" GroupName="Themes" Padding="4,9" Margin="3,0,0,0" AutomationProperties.Name="Ember colour scheme"><StackPanel Orientation="Horizontal"><Ellipse Width="7" Height="7" Fill="#FFBE7B" Margin="0,0,5,0"/><TextBlock Text="Ember" FontSize="12"/></StackPanel></RadioButton>
+                    </UniformGrid></StackPanel>
+                  </Grid>
+                  <CheckBox x:Name="LightAppearance" Visibility="Collapsed"/><ComboBox x:Name="ColourScheme" Visibility="Collapsed"><ComboBoxItem Content="Aurora"/><ComboBoxItem Content="Violet"/><ComboBoxItem Content="Ember"/></ComboBox>
+                  <Grid x:Name="AppearanceTypeRow" Margin="0,14,0,0">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <StackPanel><Label Content="Display _font" Target="{Binding ElementName=DisplayFont}"/><ComboBox x:Name="DisplayFont" IsEditable="True" IsTextSearchEnabled="True" AutomationProperties.Name="Font"/></StackPanel>
+                    <StackPanel Grid.Column="2"><Label Content="Text colour"/><UniformGrid Columns="2"><RadioButton x:Name="DefaultTextColour" GroupName="TextColour" Content="Default" Padding="8,9" Margin="0,0,3,0" AutomationProperties.Name="Use default countdown text colour"/><RadioButton x:Name="CustomTextColour" GroupName="TextColour" Content="Custom" Padding="8,9" Margin="3,0,0,0" AutomationProperties.Name="Use custom countdown text colour"/></UniformGrid></StackPanel>
+                  </Grid>
+                  <Grid x:Name="CustomTextColourDetails" Margin="0,8,0,0" Visibility="Collapsed">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="10"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBox x:Name="TextColourHex" MaxLength="7" AutomationProperties.Name="Countdown text colour, hexadecimal RGB" ToolTip="Enter a colour as #RRGGBB"/>
+                    <Button x:Name="ChooseTextColour" Grid.Column="2" Padding="12,8" AutomationProperties.Name="Choose countdown text colour"><StackPanel Orientation="Horizontal"><Rectangle x:Name="TextColourSwatch" Width="14" Height="14" RadiusX="3" RadiusY="3" Margin="0,0,8,0"/><TextBlock Text="Choose…"/></StackPanel></Button>
+                  </Grid>
+                  <Grid x:Name="AppearanceSlidersRow" Margin="0,14,0,0">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <StackPanel><Grid><Label Content="Glass _opacity" Target="{Binding ElementName=BackgroundOpacity}"/><TextBlock x:Name="OpacityValue" Text="82%" HorizontalAlignment="Right" FontSize="12" Foreground="{DynamicResource MutedText}"/></Grid><Slider x:Name="BackgroundOpacity" Minimum="35" Maximum="100" Value="82" TickFrequency="5" SmallChange="1" LargeChange="5" Margin="0,1,0,0" AutomationProperties.Name="Panel and gadget centre opacity"/></StackPanel>
+                    <StackPanel Grid.Column="2"><Grid><Label Content="Gadget si_ze" Target="{Binding ElementName=WidgetScale}"/><TextBlock x:Name="ScaleValue" Text="100%" HorizontalAlignment="Right" FontSize="12" Foreground="{DynamicResource MutedText}"/></Grid><Slider x:Name="WidgetScale" Minimum="60" Maximum="180" Value="100" TickFrequency="10" SmallChange="5" LargeChange="10" Margin="0,1,0,0" AutomationProperties.Name="Gadget display size"/></StackPanel>
+                  </Grid>
+                  <TextBlock Text="Opacity fades the panel and centre. Colours stay vivid." FontSize="11" Foreground="{DynamicResource MutedText}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                </StackPanel>
+              </TabItem>
+              <TabItem x:Name="MusicTab" Header="_Music" AutomationProperties.Name="Music response settings">
+                <StackPanel x:Name="MusicSection">
+                  <Grid Margin="0,0,0,8"><TextBlock Text="Move with your music" FontWeight="SemiBold" FontSize="18" Foreground="{DynamicResource Heading}"/><Grid Width="72" Height="3" HorizontalAlignment="Right" VerticalAlignment="Center" ClipToBounds="True"><Border Background="{DynamicResource Line}" CornerRadius="1.5"/><Rectangle x:Name="MusicLevel" Fill="{DynamicResource Accent}" RadiusX="1.5" RadiusY="1.5" RenderTransformOrigin="0,0.5"><Rectangle.RenderTransform><ScaleTransform ScaleX="0"/></Rectangle.RenderTransform></Rectangle></Grid></Grid>
+                  <CheckBox x:Name="MusicResponse" Content="Let the orb react to _music"/>
+                  <TextBlock x:Name="MusicStatus" Text="Off. Your orb keeps its calm, idle motion." Foreground="{DynamicResource MutedText}" FontSize="11" TextWrapping="Wrap" MinHeight="32" Margin="44,5,0,10" AutomationProperties.LiveSetting="Polite"/>
+                  <Grid x:Name="MusicDetails" IsEnabled="{Binding IsChecked, ElementName=MusicResponse}" Visibility="{Binding IsChecked, ElementName=MusicResponse, Converter={StaticResource MusicDetailsVisibility}}">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="146"/></Grid.ColumnDefinitions>
+                    <StackPanel><Label Content="Audio _source" Target="{Binding ElementName=AudioSource}"/>
+                      <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="38"/></Grid.ColumnDefinitions>
+                        <ComboBox x:Name="AudioSource" AutomationProperties.Name="Audio output source"/>
+                        <Button x:Name="RefreshAudioSources" Grid.Column="2" Padding="10" ToolTip="Refresh audio outputs" AutomationProperties.Name="Refresh audio output sources"><Path Data="M 11 4 A 5 5 0 1 0 12 8 M 8 4 L 12 4 L 12 0" Width="14" Height="14" Stroke="{DynamicResource Heading}" StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/></Button>
+                      </Grid>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2"><Label Content="_Intensity" Target="{Binding ElementName=MusicIntensity}"/><Slider x:Name="MusicIntensity" Minimum="0" Maximum="100" Value="35" SmallChange="5" LargeChange="10" TickFrequency="5" Margin="0,7,0,0" AutomationProperties.Name="Music response intensity, subtle to energetic"/><Grid Margin="0,3,0,0"><TextBlock Text="Subtle" Foreground="{DynamicResource MutedText}" FontSize="11"/><TextBlock Text="Energetic" HorizontalAlignment="Right" Foreground="{DynamicResource MutedText}" FontSize="11"/></Grid></StackPanel>
+                  </Grid>
+                  <TextBlock Text="Reads playback only. No microphone or recordings." Foreground="{DynamicResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="0,16,0,0"/>
+                </StackPanel>
+              </TabItem>
+              <TabItem x:Name="CelebrationTab" Header="Ce_lebration" AutomationProperties.Name="Celebration settings">
+                <StackPanel x:Name="CelebrationSection">
+                  <TextBlock Text="Make the moment yours" FontWeight="SemiBold" FontSize="18" Foreground="{DynamicResource Heading}" Margin="0,0,0,8"/>
+                  <CheckBox x:Name="StartAtLogin" Content="Launch when I _sign in"/><CheckBox x:Name="MorningGreeting" Content="Celebrate each _morning"/>
+                  <TextBlock Text="A fullscreen celebration, once between 5 am and noon." Foreground="{DynamicResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="44,3,0,0"/>
+                  <StackPanel Margin="0,18,0,0">
+                    <Label Content="Celebration _effect" Target="{Binding ElementName=CelebrationStyle}"/><ComboBox x:Name="CelebrationStyle" AutomationProperties.Name="Celebration effect"><ComboBoxItem Content="Fireworks + confetti"/><ComboBoxItem Content="Flowers + confetti"/></ComboBox>
+                    <TextBlock x:Name="CelebrationDescription" Text="Layered fireworks with glowing trails and falling confetti. Plays until you dismiss it." Foreground="{DynamicResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0"/>
+                    <TextBlock x:Name="ArrivalHint" Text="Your celebration also starts automatically at the target time, on every screen." Foreground="{DynamicResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0"/>
+                  </StackPanel>
+                  <Button x:Name="PreviewGreeting" HorizontalAlignment="Left" Margin="0,16,0,0" Padding="12,8" FontSize="12" AutomationProperties.Name="Preview celebration"><StackPanel Orientation="Horizontal"><TextBlock Text="Preview celebration"/><Path Data="M 1 9 L 9 1 M 3 1 L 9 1 L 9 7" Width="10" Height="10" Stroke="{DynamicResource Heading}" StrokeThickness="1.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Margin="8,0,0,0" VerticalAlignment="Center"/></StackPanel></Button>
+                </StackPanel>
+              </TabItem>
+              <TabItem x:Name="UpdatesTab" Header="_Updates" AutomationProperties.Name="Application updates">
+                <StackPanel x:Name="UpdatesSection">
+                  <TextBlock Text="Keep Holiday Timer up to date" FontWeight="SemiBold" FontSize="18" Foreground="{DynamicResource Heading}" TextWrapping="Wrap"/>
+                  <TextBlock x:Name="InstalledVersion" FontSize="12" Foreground="{DynamicResource MutedText}" Margin="0,8,0,0"/>
+                  <Border Background="{DynamicResource ControlSurface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,18,0,0">
+                    <StackPanel>
+                      <TextBlock x:Name="UpdateStatus" Text="Checking for updates…" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Heading}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                      <TextBlock x:Name="UpdateDetail" Text="Holiday Timer checks GitHub for new versions." FontSize="12" Foreground="{DynamicResource MutedText}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                      <WrapPanel Margin="0,14,0,0">
+                        <Button x:Name="CheckForUpdates" Content="Check for _updates" Padding="12,8" Margin="0,0,8,6" AutomationProperties.Name="Check GitHub for updates"/>
+                        <Button x:Name="InstallUpdate" Content="Download and install" Padding="12,8" Margin="0,0,0,6" Background="{DynamicResource Accent}" Foreground="{DynamicResource OnAccent}" BorderThickness="0" Visibility="Collapsed" AutomationProperties.Name="Download and install the available update"/>
+                      </WrapPanel>
+                    </StackPanel>
+                  </Border>
+                  <TextBlock Text="Your countdown and preferences stay in place. Updates install only when you choose to." FontSize="11" Foreground="{DynamicResource MutedText}" TextWrapping="Wrap" Margin="0,14,0,0"/>
+                </StackPanel>
+              </TabItem>
+            </TabControl>
+          </ScrollViewer>
+          <Grid x:Name="LivePreviewPanel" Grid.Column="2" VerticalAlignment="Top" Margin="0,10,0,0">
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="260"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="0"/><ColumnDefinition Width="0"/></Grid.ColumnDefinitions>
+            <StackPanel x:Name="LivePreviewCaption" Orientation="Horizontal" HorizontalAlignment="Center"><Ellipse Width="5" Height="5" Fill="{DynamicResource Accent}" Margin="0,0,6,0"/><TextBlock Text="LIVE PREVIEW" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource MutedText}"/></StackPanel>
+            <Viewbox x:Name="SettingsPreviewView" Grid.Row="1" Width="260" Height="260" HorizontalAlignment="Center" VerticalAlignment="Center">
+              <Grid Width="344" Height="344">
+                <Ellipse Width="344" Height="344" Fill="{DynamicResource OrbSoftGlow}" IsHitTestVisible="False"/>
+                <Grid x:Name="SettingsOrbMaterial" Opacity="{DynamicResource OrbMaterialOpacity}" OpacityMask="{DynamicResource OrbMaterialMask}" IsHitTestVisible="False"><Border Background="{DynamicResource WidgetSurface}" Width="344" Height="344" HorizontalAlignment="Center" VerticalAlignment="Center" CornerRadius="172"/><Ellipse Width="268" Height="236" Fill="{DynamicResource CountdownScrim}" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid>
+                <Canvas x:Name="SettingsOrbCanvas" Width="344" Height="344" IsHitTestVisible="False"/>
+                <StackPanel Margin="58,0,58,0" VerticalAlignment="Center" Effect="{DynamicResource OrbTextShadowEffect}">
+                  <TextBlock x:Name="SettingsPreviewName" Text="My holiday" FontSize="14" FontWeight="Medium" TextAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource OrbText}" Margin="0,0,0,7" Effect="{DynamicResource OrbPreviewTextShadowEffect}"/>
+                  <TextBlock x:Name="SettingsPreviewNumber" Text="30" FontSize="64" FontWeight="SemiBold" FontFamily="{DynamicResource CountdownFont}" Typography.NumeralAlignment="Tabular" Height="84" LineHeight="84" LineStackingStrategy="BlockLineHeight" TextAlignment="Center" Foreground="{DynamicResource OrbText}" Effect="{DynamicResource OrbPreviewTextShadowEffect}"/>
+                  <TextBlock x:Name="SettingsPreviewUnit" Text="days to go" FontSize="13" FontWeight="Medium" TextAlignment="Center" Foreground="{DynamicResource OrbSecondaryText}" Margin="0,1,0,0" Effect="{DynamicResource OrbPreviewTextShadowEffect}"/>
+                </StackPanel>
+              </Grid>
+            </Viewbox>
+            <StackPanel x:Name="LivePreviewActions" Grid.Row="2">
+              <TextBlock Text="Preview changes live." FontSize="11" Foreground="{DynamicResource MutedText}" TextAlignment="Center" TextWrapping="Wrap"/>
+              <Button x:Name="PreviewGadget" Padding="12,10" HorizontalAlignment="Stretch" Margin="0,12,0,0" AutomationProperties.Name="Preview floating gadget"><StackPanel Orientation="Horizontal"><TextBlock Text="Try on my desktop"/><Path Data="M 1 9 L 9 1 M 3 1 L 9 1 L 9 7" Width="10" Height="10" Stroke="{DynamicResource Heading}" StrokeThickness="1.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Margin="8,0,0,0" VerticalAlignment="Center"/></StackPanel></Button>
+            </StackPanel>
+          </Grid>
+        </Grid>
+        <Border Grid.Row="2" BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,16,0,0" Padding="0,12,0,0">
+          <StackPanel>
+            <TextBlock x:Name="FormError" Foreground="{DynamicResource ErrorText}" TextWrapping="Wrap" FontSize="13" AutomationProperties.LiveSetting="Assertive"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Margin" Value="0,0,0,8"/><Setter Property="Effect" Value="{DynamicResource PanelTextShadowEffect}"/><Style.Triggers><Trigger Property="Text" Value=""><Setter Property="Visibility" Value="Collapsed"/></Trigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Button x:Name="CancelButton" Content="Cancel" HorizontalAlignment="Left" Background="Transparent" BorderThickness="0" IsCancel="True"/><Button x:Name="SaveButton" Grid.Column="1" Content="Save countdown" Padding="22,11" Background="{DynamicResource Accent}" Foreground="{DynamicResource OnAccent}" BorderThickness="0" FontWeight="SemiBold" IsDefault="True"/></Grid>
+          </StackPanel>
+        </Border>
+      </Grid>
+    </Grid>
+  </Border>
+</Window>

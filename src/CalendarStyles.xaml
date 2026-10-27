@@ -1,0 +1,104 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:HolidayTimer;assembly=HolidayTimer">
+  <Style TargetType="ToolTip"><Setter Property="Background" Value="{DynamicResource PopupSurface}"/><Setter Property="Foreground" Value="{DynamicResource BodyText}"/><Setter Property="BorderBrush" Value="{DynamicResource Line}"/><Setter Property="Padding" Value="10,8"/><Setter Property="FontSize" Value="12"/><Setter Property="MaxWidth" Value="290"/><Setter Property="ContentTemplate"><Setter.Value><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap"/></DataTemplate></Setter.Value></Setter><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ToolTip"><Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="{TemplateBinding Padding}"><ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"/></Border></ControlTemplate></Setter.Value></Setter></Style>
+  <Style x:Key="CalendarNavigation" TargetType="Button">
+    <Setter Property="Width" Value="36"/><Setter Property="Height" Value="36"/><Setter Property="Padding" Value="8"/><Setter Property="Cursor" Value="Hand"/><Setter Property="Focusable" Value="True"/>
+    <Setter Property="Foreground" Value="{DynamicResource Heading}"/><Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+      <Grid><Border x:Name="Surface" CornerRadius="8" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><Border x:Name="Focus" CornerRadius="8" BorderBrush="{DynamicResource Accent}" BorderThickness="2" Visibility="Collapsed" IsHitTestVisible="False"/></Grid>
+      <ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="{DynamicResource HoverSurface}"/></Trigger><Trigger Property="IsPressed" Value="True"><Setter TargetName="Surface" Property="Background" Value="{DynamicResource HoverSurface}"/><Setter TargetName="Surface" Property="Opacity" Value="0.7"/></Trigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Focus" Property="Visibility" Value="Visible"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.35"/></Trigger></ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="CalendarMonthHeading" TargetType="Button" BasedOn="{StaticResource CalendarNavigation}"><Setter Property="Width" Value="Auto"/><Setter Property="HorizontalAlignment" Value="Left"/><Setter Property="Padding" Value="8,4"/><Setter Property="FontSize" Value="18"/><Setter Property="FontWeight" Value="SemiBold"/></Style>
+  <Style x:Key="CelebrationDay" TargetType="CalendarDayButton">
+    <Setter Property="MinWidth" Value="40"/><Setter Property="MinHeight" Value="40"/><Setter Property="Margin" Value="2"/><Setter Property="FontSize" Value="14"/><Setter Property="Foreground" Value="{DynamicResource BodyText}"/><Setter Property="Background" Value="Transparent"/><Setter Property="Cursor" Value="Hand"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="CalendarDayButton">
+      <Grid>
+        <Border x:Name="WeekendTint" Background="{DynamicResource HoverSurface}" CornerRadius="8" Visibility="Collapsed"/>
+        <Border x:Name="Hover" Background="{DynamicResource HoverSurface}" CornerRadius="8" Visibility="Collapsed"/>
+        <Border x:Name="Today" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="8" Visibility="Collapsed"/>
+        <Border x:Name="Selected" Background="{DynamicResource Accent}" CornerRadius="8" Visibility="Collapsed"/>
+        <ContentPresenter x:Name="Number" Content="{TemplateBinding Content}" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,1"/>
+        <Ellipse x:Name="HolidayDot" Width="4" Height="4" Fill="{DynamicResource SecondaryAccent}" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,4" Visibility="Collapsed" IsHitTestVisible="False"/>
+        <Border x:Name="Focus" BorderBrush="{DynamicResource Heading}" BorderThickness="2" CornerRadius="10" Margin="-1" Visibility="Collapsed" IsHitTestVisible="False"/>
+      </Grid>
+      <ControlTemplate.Triggers>
+        <Trigger Property="local:CalendarPicker.IsWeekend" Value="True"><Setter TargetName="WeekendTint" Property="Visibility" Value="Visible"/></Trigger>
+        <Trigger Property="local:CalendarPicker.IsHoliday" Value="True"><Setter TargetName="HolidayDot" Property="Visibility" Value="Visible"/></Trigger>
+        <Trigger Property="IsToday" Value="True"><Setter TargetName="Today" Property="Visibility" Value="Visible"/></Trigger>
+        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Hover" Property="Visibility" Value="Visible"/></Trigger>
+        <Trigger Property="IsPressed" Value="True"><Setter TargetName="Hover" Property="Visibility" Value="Visible"/><Setter TargetName="Number" Property="Opacity" Value="0.65"/></Trigger>
+        <Trigger Property="IsInactive" Value="True"><Setter TargetName="Number" Property="Opacity" Value="0.40"/><Setter TargetName="HolidayDot" Property="Opacity" Value="0.5"/><Setter TargetName="WeekendTint" Property="Opacity" Value="0.4"/></Trigger>
+        <Trigger Property="IsSelected" Value="True"><Setter TargetName="Selected" Property="Visibility" Value="Visible"/><Setter Property="Foreground" Value="{DynamicResource OnAccent}"/><Setter Property="FontWeight" Value="SemiBold"/><Setter TargetName="Number" Property="Opacity" Value="1"/><Setter TargetName="HolidayDot" Property="Fill" Value="{DynamicResource OnAccent}"/><Setter TargetName="HolidayDot" Property="Opacity" Value="1"/></Trigger>
+        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Focus" Property="Visibility" Value="Visible"/></Trigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.35"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
+        <Trigger Property="IsBlackedOut" Value="True"><Setter Property="Opacity" Value="0.35"/><Setter Property="Cursor" Value="Arrow"/></Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="CelebrationMonth" TargetType="CalendarButton">
+    <Setter Property="MinHeight" Value="54"/><Setter Property="Margin" Value="3"/><Setter Property="FontSize" Value="13"/><Setter Property="Foreground" Value="{DynamicResource BodyText}"/><Setter Property="Cursor" Value="Hand"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="CalendarButton">
+      <Grid><Border x:Name="Surface" CornerRadius="8" Background="Transparent"/><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/><Border x:Name="Focus" BorderBrush="{DynamicResource Heading}" BorderThickness="2" CornerRadius="9" Margin="-1" Visibility="Collapsed"/></Grid>
+      <ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="{DynamicResource HoverSurface}"/></Trigger><Trigger Property="IsPressed" Value="True"><Setter Property="Opacity" Value="0.7"/></Trigger><Trigger Property="HasSelectedDays" Value="True"><Setter TargetName="Surface" Property="Background" Value="{DynamicResource Accent}"/><Setter Property="Foreground" Value="{DynamicResource OnAccent}"/><Setter Property="FontWeight" Value="SemiBold"/></Trigger><Trigger Property="IsInactive" Value="True"><Setter Property="Opacity" Value="0.4"/></Trigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Focus" Property="Visibility" Value="Visible"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.35"/></Trigger></ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="CelebrationCalendarItem" TargetType="CalendarItem">
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="CalendarItem">
+      <ControlTemplate.Resources><DataTemplate x:Key="{x:Static CalendarItem.DayTitleTemplateResourceKey}"><TextBlock Text="{Binding}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource MutedText}" HorizontalAlignment="Center" VerticalAlignment="Center"/></DataTemplate></ControlTemplate.Resources>
+      <Grid x:Name="PART_Root">
+        <Grid.RowDefinitions><RowDefinition Height="40"/><RowDefinition Height="10"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="38"/><ColumnDefinition Width="38"/></Grid.ColumnDefinitions>
+        <Button x:Name="PART_HeaderButton" Style="{StaticResource CalendarMonthHeading}" AutomationProperties.Name="Choose month or year" ToolTip="Choose a month, year or decade"/>
+        <Button x:Name="PART_PreviousButton" Grid.Column="1" Style="{StaticResource CalendarNavigation}" AutomationProperties.Name="Previous month or period" ToolTip="Previous month or period"><Path Data="M 7 0 L 1 6 L 7 12" Stroke="{DynamicResource Heading}" StrokeThickness="1.7" StrokeStartLineCap="Round" StrokeEndLineCap="Round" HorizontalAlignment="Center" VerticalAlignment="Center"/></Button>
+        <Button x:Name="PART_NextButton" Grid.Column="2" Style="{StaticResource CalendarNavigation}" AutomationProperties.Name="Next month or period" ToolTip="Next month or period"><Path Data="M 1 0 L 7 6 L 1 12" Stroke="{DynamicResource Heading}" StrokeThickness="1.7" StrokeStartLineCap="Round" StrokeEndLineCap="Round" HorizontalAlignment="Center" VerticalAlignment="Center"/></Button>
+        <Grid x:Name="PART_MonthView" Grid.Row="2" Grid.ColumnSpan="3">
+          <Grid.RowDefinitions><RowDefinition Height="28"/><RowDefinition Height="44"/><RowDefinition Height="44"/><RowDefinition Height="44"/><RowDefinition Height="44"/><RowDefinition Height="44"/><RowDefinition Height="44"/></Grid.RowDefinitions>
+          <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+        </Grid>
+        <Grid x:Name="PART_YearView" Grid.Row="2" Grid.ColumnSpan="3" Visibility="Hidden" Height="292">
+          <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+        </Grid>
+        <Border x:Name="PART_DisabledVisual" Grid.RowSpan="3" Grid.ColumnSpan="3" Background="{DynamicResource PopupSurface}" Opacity="0" IsHitTestVisible="False"/>
+      </Grid>
+      <ControlTemplate.Triggers>
+        <DataTrigger Binding="{Binding DisplayMode, RelativeSource={RelativeSource AncestorType={x:Type Calendar}}}" Value="{x:Static CalendarMode.Year}"><Setter TargetName="PART_MonthView" Property="Visibility" Value="Collapsed"/><Setter TargetName="PART_YearView" Property="Visibility" Value="Visible"/></DataTrigger>
+        <DataTrigger Binding="{Binding DisplayMode, RelativeSource={RelativeSource AncestorType={x:Type Calendar}}}" Value="{x:Static CalendarMode.Decade}"><Setter TargetName="PART_MonthView" Property="Visibility" Value="Collapsed"/><Setter TargetName="PART_YearView" Property="Visibility" Value="Visible"/></DataTrigger>
+        <Trigger Property="IsEnabled" Value="False"><Setter TargetName="PART_DisabledVisual" Property="Opacity" Value="0.5"/></Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="CelebrationCalendar" TargetType="Calendar">
+    <Setter Property="Width" Value="354"/><Setter Property="Margin" Value="0,6,0,6"/><Setter Property="Foreground" Value="{DynamicResource BodyText}"/><Setter Property="Background" Value="{DynamicResource PopupSurface}"/><Setter Property="BorderBrush" Value="{DynamicResource Line}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="CalendarItemStyle" Value="{StaticResource CelebrationCalendarItem}"/><Setter Property="CalendarDayButtonStyle" Value="{StaticResource CelebrationDay}"/><Setter Property="CalendarButtonStyle" Value="{StaticResource CelebrationMonth}"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Calendar">
+      <Grid x:Name="PART_Root"><Border CornerRadius="16" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" Padding="16,12,16,16">
+        <StackPanel>
+          <CalendarItem x:Name="PART_CalendarItem" Style="{TemplateBinding CalendarItemStyle}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" FontFamily="{TemplateBinding FontFamily}" Foreground="{TemplateBinding Foreground}"/>
+          <Border BorderBrush="{DynamicResource Line}" BorderThickness="0,1,0,0" Margin="0,14,0,0" Padding="0,14,0,0">
+            <StackPanel>
+              <TextBlock x:Name="CelebrationSummary" Text="{Binding Path=(local:CalendarPicker.SelectionSummary), RelativeSource={RelativeSource TemplatedParent}}" Foreground="{DynamicResource Heading}" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"/>
+              <WrapPanel Margin="0,11,0,0">
+                <StackPanel Orientation="Horizontal" Margin="0,0,14,0"><Border Width="9" Height="9" CornerRadius="2" Background="{DynamicResource Accent}" VerticalAlignment="Center" Margin="0,0,6,0"/><TextBlock Text="Celebration" Foreground="{DynamicResource BodyText}" FontSize="11"/></StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,14,0"><Border Width="9" Height="9" CornerRadius="2" Background="{DynamicResource HoverSurface}" BorderBrush="{DynamicResource Line}" BorderThickness="1" VerticalAlignment="Center" Margin="0,0,6,0"/><TextBlock Text="Weekend" Foreground="{DynamicResource BodyText}" FontSize="11"/></StackPanel>
+                <StackPanel Orientation="Horizontal"><Ellipse Width="5" Height="5" Fill="{DynamicResource SecondaryAccent}" VerticalAlignment="Center" Margin="0,0,6,0"/><TextBlock Text="NSW holiday" Foreground="{DynamicResource BodyText}" FontSize="11"/></StackPanel>
+              </WrapPanel>
+              <TextBlock x:Name="CalendarCoverage" Text="{Binding Path=(local:CalendarPicker.CalendarNotice), RelativeSource={RelativeSource TemplatedParent}}" Foreground="{DynamicResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="0,10,0,0"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Border></Grid>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="CelebrationDatePicker" TargetType="DatePicker">
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="DatePicker">
+      <Grid Background="{TemplateBinding Background}">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="34"/></Grid.ColumnDefinitions>
+        <DatePickerTextBox x:Name="PART_TextBox" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Center" Background="Transparent" Foreground="{TemplateBinding Foreground}" FontFamily="{TemplateBinding FontFamily}" FontSize="{TemplateBinding FontSize}" BorderThickness="0" Padding="4,5"/>
+        <Button x:Name="PART_Button" Grid.Column="1" Style="{StaticResource CalendarNavigation}" Width="30" Height="28" Padding="6" Focusable="False" AutomationProperties.Name="Open celebration calendar" ToolTip="Choose your celebration date"><Path Data="M 2 3 L 16 3 Q 18 3 18 5 L 18 16 Q 18 18 16 18 L 2 18 Q 0 18 0 16 L 0 5 Q 0 3 2 3 M 0 8 L 18 8 M 5 0 L 5 5 M 13 0 L 13 5" Width="18" Height="18" Stretch="Uniform" Stroke="{DynamicResource MutedText}" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/></Button>
+        <Popup x:Name="PART_Popup" Placement="Bottom" PlacementTarget="{Binding RelativeSource={RelativeSource TemplatedParent}}" AllowsTransparency="True" StaysOpen="False" PopupAnimation="None"/>
+      </Grid>
+      <ControlTemplate.Triggers><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.5"/></Trigger></ControlTemplate.Triggers>
+    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+</ResourceDictionary>
