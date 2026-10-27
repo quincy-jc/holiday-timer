@@ -1,9 +1,9 @@
 param(
     [switch]$Test,
     [switch]$SkipAppBuild,
-    [string]$PayloadDirectory = 'dist\github-update',
-    [string]$OutputDirectory = 'dist\github-setup',
-    [string]$MetadataDirectory = 'dist\github-setup-verification',
+    [string]$PayloadDirectory = 'dist\mit-update',
+    [string]$OutputDirectory = 'dist\mit-setup',
+    [string]$MetadataDirectory = 'dist\mit-setup-verification',
     [string]$CompilerPath = 'tools\inno-6.7.3\ISCC.exe',
     [switch]$IsolationTest,
     [string]$TestRoot
@@ -24,7 +24,7 @@ if (-not $SkipAppBuild) {
     & (Join-Path $taskRoot 'build.ps1') -Test:$Test -OutputDirectory $payload
 }
 Copy-Item -LiteralPath (Join-Path $taskRoot 'README.md') -Destination (Join-Path $payload 'README.md') -Force
-foreach ($file in @('HolidayTimer.exe','HolidayTimer.exe.config','Inter-LICENSE.txt','README.md')) {
+foreach ($file in @('HolidayTimer.exe','HolidayTimer.exe.config','Inter-LICENSE.txt','LICENSE.txt','README.md')) {
     if (-not (Test-Path -LiteralPath (Join-Path $payload $file) -PathType Leaf)) { throw ('Missing payload: ' + $file) }
 }
 New-Item -ItemType Directory -Force -Path $output | Out-Null

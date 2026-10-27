@@ -5,7 +5,7 @@
 #ifndef SetupOutputDir
   #define SetupOutputDir "..\dist\setup"
 #endif
-#define AppVersion "1.7.1"
+#define AppVersion "1.7.2"
 #ifdef IsolationTest
   #ifdef PreviousVersion
     #undef AppVersion
@@ -70,6 +70,13 @@ TouchDate=none
 Source: "{#PayloadDir}\HolidayTimer.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#PayloadDir}\HolidayTimer.exe.config"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#PayloadDir}\Inter-LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
+#ifndef PreviousVersion
+Source: "{#PayloadDir}\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
+#else
+  #ifdef PreviousHasLicense
+Source: "{#PayloadDir}\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
+  #endif
+#endif
 Source: "{#PayloadDir}\README.md"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]

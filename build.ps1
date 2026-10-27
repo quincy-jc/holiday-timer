@@ -28,6 +28,7 @@ foreach ($layout in @('SettingsWindow','WidgetWindow','GreetingWindow','Controls
 if ($LASTEXITCODE -ne 0) { throw 'Holiday Timer build failed.' }
 Copy-Item -LiteralPath (Join-Path $taskRoot 'src\HolidayTimer.exe.config') -Destination (Join-Path $output 'HolidayTimer.exe.config') -Force
 Copy-Item -LiteralPath (Join-Path $taskRoot 'assets\fonts\LICENSE.txt') -Destination (Join-Path $output 'Inter-LICENSE.txt') -Force
+Copy-Item -LiteralPath (Join-Path $taskRoot 'LICENSE') -Destination (Join-Path $output 'LICENSE.txt') -Force
 Write-Output ('Built ' + (Join-Path $output 'HolidayTimer.exe'))
 if ($Test) {
     $testExe = Join-Path $output 'CoreTests.exe'

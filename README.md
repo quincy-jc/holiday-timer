@@ -4,21 +4,21 @@ A native Windows countdown with a live glass panel, animated orb and tray icon. 
 
 ## Install from one file
 
-Share `dist/github-setup/HolidayTimerSetup.exe` for version 1.7.1. Double-click and choose Install. It updates the existing app without duplicate Apps entries and preserves preferences. A new or expired countdown automatically loads the next NSW public holiday, and a settings picker can refresh dates from the NSW Government. Previous artifacts retain their directories.
+Share `dist/mit-setup/HolidayTimerSetup.exe` for version 1.7.2. Double-click and choose Install. It updates the existing app without duplicate Apps entries and preserves preferences. A new or expired countdown automatically loads the next NSW public holiday, and a settings picker can refresh dates from the NSW Government. Previous artifacts retain their directories.
 
 The setup installs for the current Windows user at `%LOCALAPPDATA%\Programs\HolidayTimer`. On Windows 11 it needs no administrator password, restart, or internet connection. It adds a Start menu shortcut and **Holiday Timer** to **Settings → Apps → Installed apps**, where you can choose **Uninstall**.
 
 Save any edits and choose **Exit Holiday Timer** from the tray before updating or uninstalling. The setup preserves your saved countdown; reinstalling restores it. The uninstall removes the installed app and its own sign-in entry, while keeping `%LOCALAPPDATA%\HolidayTimer\settings.json` and its backup.
 
-The single setup file contains the app, configuration, and font licence. It creates the necessary installed files automatically, so recipients do not have to manage a portable folder. The setup is unsigned, so Windows may show an unknown-publisher or SmartScreen prompt.
+The single setup file contains the app, configuration, software licence, and font licence. It creates the necessary installed files automatically, so recipients do not have to manage a portable folder. The setup is unsigned, so Windows may show an unknown-publisher or SmartScreen prompt.
 
 ## Open the portable build
 
-The current portable app is `dist/github-update/HolidayTimer.exe`. Keep its configuration and font licence beside it. Prior builds remain in their existing folders.
+The current portable app is `dist/mit-update/HolidayTimer.exe`. Keep its configuration and licences beside it. Prior builds remain in their existing folders.
 
-If another copy is running, **save any edits you want to keep**, then choose **Exit Holiday Timer** from its system tray menu. Open `dist/github-update/HolidayTimer.exe`. The app is single-instance: opening another copy while the old one is running activates the existing app.
+If another copy is running, **save any edits you want to keep**, then choose **Exit Holiday Timer** from its system tray menu. Open `dist/mit-update/HolidayTimer.exe`. The app is single-instance: opening another copy while the old one is running activates the existing app.
 
-Keep `HolidayTimer.exe.config` and `Inter-LICENSE.txt` beside the executable. Inter Display is bundled, and the app uses the .NET Framework included with Windows 11.
+Keep `HolidayTimer.exe.config`, `LICENSE.txt` and `Inter-LICENSE.txt` beside the executable. Inter Display is bundled, and the app uses the .NET Framework included with Windows 11.
 
 Enter the holiday name, date, and 24-hour time. Choose a unit, adjust appearance, then select **Save countdown**. The in-panel orb preview updates as you edit. **Try it on my desktop** opens a live floating preview. Preview changes remain in memory until Save; Cancel discards them.
 
@@ -53,11 +53,11 @@ Settings groups Countdown, Appearance, Music, Celebration and Updates into compa
 
 ## Updates
 
-Version 1.7.1 checks the public `quincy-jc/holiday-timer` GitHub Releases page at startup and approximately every six hours. **Settings → Updates** or **Check for updates** in the tray lets you check immediately. A tray notification appears when a newer stable version is available. Offline or failed checks leave the existing countdown working.
+Version 1.7.2 checks the public `quincy-jc/holiday-timer` GitHub Releases page at startup and approximately every six hours. **Settings → Updates** or **Check for updates** in the tray lets you check immediately. A tray notification appears when a newer stable version is available. Offline or failed checks leave the existing countdown working.
 
 Choose **Download and install**, save any settings edits, and confirm. The app verifies the download against the release's SHA-256 digest and version, closes, and the per-user installer updates the existing installation and reopens it. Updates are never installed without your action. If settings is closed while a download finishes, the app waits until you return and select **Install update**. An unsigned installer may still show a Windows security prompt; the digest checks download integrity and does not replace code signing.
 
-An existing 1.7.0 or older installation needs one manual install of 1.7.1 to gain working update checks; the 1.7.0 updater could not contact GitHub. Exit the old app from its tray menu before running that installer. Portable copies open the release page instead of silently installing to a different location.
+An existing 1.7.0 or older installation needs one manual install of 1.7.2 to gain working update checks; the 1.7.0 updater could not contact GitHub. Exit the old app from its tray menu before running that installer. Version 1.7.1 can update from within the app. Portable copies open the release page instead of silently installing to a different location.
 
 For a later release, update the assembly and installer version numbers in `src/AssemblyInfo.cs` and `installer/HolidayTimer.iss`, build and test the setup, and publish it as `HolidayTimerSetup.exe` on a non-prerelease GitHub release with a matching stable three-part tag such as `v1.8.0`. GitHub must expose the asset's SHA-256 digest before the app offers the release.
 
@@ -114,10 +114,10 @@ Preferences are stored at `%LOCALAPPDATA%\HolidayTimer\settings.json`, with the 
 Build and run isolated checks without replacing the preserved original:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 -Test -OutputDirectory dist\github-update
+powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 -Test -OutputDirectory dist\mit-update
 ```
 
-`dist/github-update/HolidayTimer.exe --render-preview` renders the actual WPF layouts into the updated build's `previews` folder without changing personal preferences or login registration. Layout captures use mock desktop backdrops; music examples use synthetic signals. Live Windows blur and actual audio capture have separate native evidence. See `VERIFICATION.md` for the current checks and evidence.
+`dist/mit-update/HolidayTimer.exe --render-preview` renders the actual WPF layouts into the updated build's `previews` folder without changing personal preferences or login registration. Layout captures use mock desktop backdrops; music examples use synthetic signals. Live Windows blur and actual audio capture have separate native evidence. See `VERIFICATION.md` for the current checks and evidence.
 
 To build the single-file setup and run the application and isolated installation checks:
 
@@ -127,5 +127,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build-setup.ps1 -Test
 
 See [installer/README.md](installer/README.md) for isolated installation checks, packaging details, and compiler licensing.
 
-The font files in `assets/fonts` are needed for rebuilding. Inter Display comes from the official [Inter 4.1 release](https://github.com/rsms/inter/releases/tag/v4.1) and is distributed under the included SIL Open Font License.
+Holiday Timer's source code is distributed under the [MIT License](LICENSE). The bundled Inter Display font comes from the official [Inter 4.1 release](https://github.com/rsms/inter/releases/tag/v4.1) and remains under its separate [SIL Open Font License](assets/fonts/LICENSE.txt). The Inno Setup build tool has its own licence as described in the installer documentation.
 

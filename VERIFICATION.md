@@ -6,6 +6,8 @@ Version 1.7.1 passed 243 core, 198 effect/settings, 250 working-calendar, 241 pu
 
 The initial 1.7.0 release used an unsupported HTTP header assignment and could not check GitHub. Version 1.7.1 fixes the request and adds a regression check; 1.7.0 is marked as superseded.
 
+Version 1.7.2 adds the MIT licence for the project and includes it alongside the existing Inter Display font licence in the installer. The application checks passed, and an isolated 1.7.1 upgrade, handoff and uninstall passed 109 checks. The public source and its commit history were reviewed for common credential and personal-path patterns; automated checks cannot guarantee the absence of every sensitive detail.
+
 Run `build.ps1 -Test` for application checks. Run `build-setup.ps1 -Test` after installing the documented Inno Setup compiler for the installer checks. If a previous-version payload is present at `dist/public-holiday-update`, the installer test includes that payload in its upgrade check; otherwise it exercises install, update handoff, and uninstall using the current payload.
 
 The setup is unsigned. The GitHub release digest verifies download integrity, but does not replace code signing or protect against compromise of the publishing account. Reduced motion, High Contrast, hardware audio devices, multiple monitors and live Windows glass should also be checked in the target environment.

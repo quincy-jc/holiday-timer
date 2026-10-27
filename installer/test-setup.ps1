@@ -1,7 +1,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$CompilerPath,
-    [string]$PayloadDirectory = 'dist\github-update',
-    [string]$PreviousPayloadDirectory = 'dist\public-holiday-update',
+    [string]$PayloadDirectory = 'dist\mit-update',
+    [string]$PreviousPayloadDirectory = 'dist\github-update',
     [string]$TestRoot
 )
 
@@ -128,7 +128,7 @@ function Invoke-Uninstall([string]$LogName, [bool]$ExpectSuccess = $true) {
         # exit before that copy finishes removing the original uninstaller.
         $deadline = [DateTime]::UtcNow.AddSeconds(10)
         do {
-            $remaining = @(@('HolidayTimer.exe', 'HolidayTimer.exe.config', 'Inter-LICENSE.txt', 'README.md', 'unins000.exe', 'unins000.dat') |
+            $remaining = @(@('HolidayTimer.exe', 'HolidayTimer.exe.config', 'Inter-LICENSE.txt', 'LICENSE.txt', 'README.md', 'unins000.exe', 'unins000.dat') |
                 Where-Object { Test-Path -LiteralPath (Join-Path $installRoot $_) })
             $finished = $remaining.Count -eq 0 -and (Get-RegistrySnapshot $testUninstallPath) -eq '<absent>' -and
                 -not (Test-Path -LiteralPath $shortcutPath)
@@ -139,12 +139,14 @@ function Invoke-Uninstall([string]$LogName, [bool]$ExpectSuccess = $true) {
 }
 
 function Assert-Payload([string]$ExpectedPayload = $PayloadDirectory) {
-    foreach ($name in @('HolidayTimer.exe', 'HolidayTimer.exe.config', 'Inter-LICENSE.txt', 'README.md')) {
+    $expectedFiles = @('HolidayTimer.exe', 'HolidayTimer.exe.config', 'Inter-LICENSE.txt', 'README.md')
+    if (Test-Path -LiteralPath (Join-Path $ExpectedPayload 'LICENSE.txt')) { $expectedFiles += 'LICENSE.txt' }
+    foreach ($name in $expectedFiles) {
         Assert-Check ((Get-FileSnapshot (Join-Path $installRoot $name)) -eq (Get-FileSnapshot (Join-Path $ExpectedPayload $name))) ('Installed payload matches: ' + $name)
     }
 }
 
-function Assert-AppsEntry([string]$ExpectedVersion = '1.7.1') {
+function Assert-AppsEntry([string]$ExpectedVersion = '1.7.2') {
     $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($testUninstallPath)
     try {
         Assert-Check ($null -ne $key) 'One isolated Windows Apps uninstall entry exists'
@@ -194,7 +196,7 @@ function Release-TestMutex {
 
 Assert-Check ((Get-RegistrySnapshot $testRegistryPath) -eq '<absent>') 'Test registry namespace is unused'
 Assert-Check ((Get-RegistrySnapshot $testUninstallPath) -eq '<absent>') 'Test uninstall namespace is unused'
-foreach ($name in @('HolidayTimer.exe', 'HolidayTimer.exe.config', 'Inter-LICENSE.txt', 'README.md')) {
+foreach ($name in @('HolidayTimer.exe', 'HolidayTimer.exe.config', 'Inter-LICENSE.txt', 'LICENSE.txt', 'README.md')) {
     Assert-Check (Test-Path -LiteralPath (Join-Path $PayloadDirectory $name) -PathType Leaf) ('Payload contains: ' + $name)
 }
 $personalBefore = Get-PersonalSnapshot
@@ -216,7 +218,10 @@ try {
         $previousVersion = ((Get-Item -LiteralPath (Join-Path $previousPayload 'HolidayTimer.exe')).VersionInfo.FileVersion.Split('.')[0..2]) -join '.'
         $previousOutput = Join-Path $outputRoot 'previous'
         New-Item -ItemType Directory -Path $previousOutput | Out-Null
-        Invoke-CheckedProcess $CompilerPath @('/Qp', '/DIsolationTest', ('/DPreviousVersion="' + $previousVersion + '"'), ('/DTestRoot="' + $TestRoot + '"'), ('/DPayloadDir="' + $previousPayload + '"'), ('/DSetupOutputDir="' + $previousOutput + '"'), ('"' + $setupScript + '"')) 'Prior version isolated installer compilation'
+        $previousArguments = @('/Qp', '/DIsolationTest', ('/DPreviousVersion="' + $previousVersion + '"'), ('/DTestRoot="' + $TestRoot + '"'), ('/DPayloadDir="' + $previousPayload + '"'), ('/DSetupOutputDir="' + $previousOutput + '"'))
+        if (Test-Path -LiteralPath (Join-Path $previousPayload 'LICENSE.txt')) { $previousArguments += '/DPreviousHasLicense' }
+        $previousArguments += ('"' + $setupScript + '"')
+        Invoke-CheckedProcess $CompilerPath $previousArguments 'Prior version isolated installer compilation'
         $previousSetup = Join-Path $previousOutput 'HolidayTimerSetup-Test.exe'
         Assert-Check (Test-Path -LiteralPath $previousSetup) 'Prior version installer exists for the upgrade check'
     }
@@ -284,7 +289,7 @@ try {
     } finally { Release-TestMutex }
 
     Invoke-Uninstall 'uninstall-owned-run.log'
-    foreach ($name in @('HolidayTimer.exe', 'HolidayTimer.exe.config', 'Inter-LICENSE.txt', 'README.md', 'unins000.exe', 'unins000.dat')) {
+    foreach ($name in @('HolidayTimer.exe', 'HolidayTimer.exe.config', 'Inter-LICENSE.txt', 'LICENSE.txt', 'README.md', 'unins000.exe', 'unins000.dat')) {
         Assert-Check (-not (Test-Path -LiteralPath (Join-Path $installRoot $name))) ('Uninstall removes owned file: ' + $name)
     }
     Assert-Check ((Get-RegistrySnapshot $testUninstallPath) -eq '<absent>') 'Uninstall removes its Windows Apps entry'
@@ -307,7 +312,7 @@ try {
     Assert-Check ((Get-FileSnapshot (Join-Path $preferencesRoot 'settings.json')) -eq $preferenceHashes[0]) 'The reinstall cycle preserves saved preferences'
 
     Assert-Check ((Get-PersonalSnapshot) -eq $personalBefore) 'Personal preferences, startup, Apps entries, shortcuts, and the running app remain untouched'
-    $result = [ordered]@{ Passed = $checks; TestRoot = $TestRoot; SetupHash = Get-FileSnapshot $isolatedSetup; Payload = $PayloadDirectory; PreviousVersion = $previousVersion; UpgradeVersion = '1.7.1'; PersonalStateUnchanged = $true }
+    $result = [ordered]@{ Passed = $checks; TestRoot = $TestRoot; SetupHash = Get-FileSnapshot $isolatedSetup; Payload = $PayloadDirectory; PreviousVersion = $previousVersion; UpgradeVersion = '1.7.2'; PersonalStateUnchanged = $true }
     $result | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $TestRoot 'result.json') -Encoding UTF8
     Write-Output ('Installer acceptance checks passed: ' + $checks)
     Write-Output ('Evidence: ' + (Join-Path $TestRoot 'result.json'))
