@@ -113,7 +113,10 @@ namespace HolidayTimer
             }
             if (kind == CompanionKind.Dog || kind == CompanionKind.Cat)
             { DrawWalkingAnimal(dc, kind, distance, colour); return; }
-            int index = (int)Math.Floor(CompanionMotion.StepPhase(distance) * 4) % moving.Length;
+            // The rabbit and bird use separate four-frame artwork; preserve
+            // their animation timing when tuning the quadrupeds' stride.
+            double framePhase = Math.Max(0, distance) / (10 / CompanionMotion.StanceFraction * CompanionMotion.ArtScale);
+            int index = (int)Math.Floor(framePhase * 4) % moving.Length;
             Paint(dc, moving[index], colour);
         }
 
@@ -122,32 +125,36 @@ namespace HolidayTimer
             double cycle = CompanionMotion.StepPhase(distance);
             // Four alternating contacts. The contact half of each gait is
             // driven directly by distance, so planted paws do not slide.
-            Leg(dc, 19, 37, cycle + .50, true, colour);
-            Leg(dc, 40, 37, cycle + .25, false, colour);
-            Leg(dc, 20, 37, cycle, true, colour);
-            Leg(dc, 41, 37, cycle + .75, false, colour);
+            Leg(dc, 19, 35, cycle + .50, true, colour);
+            Leg(dc, 40, 35, cycle + .25, false, colour);
+            Leg(dc, 20, 35, cycle, true, colour);
+            Leg(dc, 41, 35, cycle + .75, false, colour);
             dc.PushClip(kind == CompanionKind.Cat ? CatBodyClip : DogBodyClip);
             Paint(dc, kind == CompanionKind.Cat ? CatWalk[0] : DogWalk[0], colour); dc.Pop();
         }
 
         private static void Leg(DrawingContext dc, double x, double y, double phase, bool hind, Brush colour)
         {
-            double footX = x + CompanionMotion.FootX(phase), lift = CompanionMotion.FootLift(phase);
-            double footY = 51 - lift;
-            double kneeX = x + (hind ? 3.0 : .6) + CompanionMotion.FootX(phase) * .18;
-            double kneeY = y + 6;
-            double hockX = hind ? x - 1 + CompanionMotion.FootX(phase) * .65 : kneeX + (footX - kneeX) * .6;
-            double hockY = hind ? 46 - lift * .4 : kneeY + (footY - kneeY) * .6;
-            double width = hind ? 2.8 : 2.0;
+            double stride = CompanionMotion.FootX(phase), lift = CompanionMotion.FootLift(phase);
+            double footX = x + stride, footY = 51 - lift;
+            // A dog's or cat's hind leg folds forward at the stifle and back
+            // at the hock; the foreleg has a gentler, nearly vertical bend.
+            // Keep the lower joints close to the foot instead of drawing a
+            // second exaggerated zig-zag as the paw passes under the body.
+            double kneeX = x + (hind ? 2.0 : -.4) + stride * .18;
+            double kneeY = y + 7;
+            double ankleX = x + (hind ? -.7 : 0) + stride * .72;
+            double ankleY = footY - 3.0;
+            double width = hind ? 2.5 : 1.8;
             StreamGeometry geometry = new StreamGeometry();
             using (StreamGeometryContext g = geometry.Open())
             {
                 g.BeginFigure(new Point(x - width, y), true, true);
-                g.QuadraticBezierTo(new Point(x - width, y + 3), new Point(kneeX - 1.4, kneeY), true, false);
-                g.QuadraticBezierTo(new Point(hockX - 1.3, hockY), new Point(footX - 1.1, footY - .7), true, false);
-                g.QuadraticBezierTo(new Point(footX - 1.1, footY + 1), new Point(footX + 2.2, footY + 1), true, false);
-                g.QuadraticBezierTo(new Point(footX + 2.8, footY + .2), new Point(footX + 1, footY - 1), true, false);
-                g.QuadraticBezierTo(new Point(hockX + 1.0, hockY), new Point(kneeX + 1.3, kneeY), true, false);
+                g.QuadraticBezierTo(new Point(x - width, y + 3), new Point(kneeX - 1.5, kneeY), true, false);
+                g.QuadraticBezierTo(new Point(ankleX - 1.0, ankleY - 1), new Point(footX - .9, footY - .6), true, false);
+                g.QuadraticBezierTo(new Point(footX - .9, footY + .6), new Point(footX + 1.5, footY + .6), true, false);
+                g.QuadraticBezierTo(new Point(footX + 2.0, footY + .2), new Point(footX + .8, footY - .8), true, false);
+                g.QuadraticBezierTo(new Point(ankleX + .9, ankleY - .5), new Point(kneeX + 1.3, kneeY), true, false);
                 g.QuadraticBezierTo(new Point(x + width, y + 3), new Point(x + width, y), true, false);
             }
             geometry.Freeze(); dc.DrawGeometry(colour, null, geometry);

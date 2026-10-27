@@ -19,7 +19,7 @@ internal static class CompanionMotionTests
             Check(Math.Abs(plantedBefore - plantedAfter) < 1e-8, "A planted foot remains fixed as the body advances");
             Check(CompanionMotion.FootLift(phase) == 0, "A stance foot stays on the ground");
         }
-        Check(CompanionMotion.FootLift(.8) > 3, "A swinging paw lifts off the ground");
+        Check(CompanionMotion.FootLift(.8) > 2, "A swinging paw lifts off the ground");
         Check(Math.Abs(CompanionMotion.FootX(0) - CompanionMotion.FootX(1)) < 1e-8, "The stride loops without a position jump");
         CompanionMotion quiet = new CompanionMotion(); quiet.SetForTest(0, 0);
         Step(quiet, CompanionKind.Dog, 1, 0);

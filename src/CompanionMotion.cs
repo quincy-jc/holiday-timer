@@ -8,7 +8,7 @@ namespace HolidayTimer
     // foot travels backwards under the body at exactly the speed of travel.
     internal sealed class CompanionMotion
     {
-        internal const double Radius = 125, Stride = 10, StanceFraction = .6, ArtScale = .95;
+        internal const double Radius = 125, Stride = 7, StanceFraction = .6, ArtScale = .95;
         private static readonly CompanionAction[] Sequence = { CompanionAction.Travel, CompanionAction.Rest,
             CompanionAction.Travel, CompanionAction.Play, CompanionAction.Travel, CompanionAction.Sleep };
         private static readonly double[] Durations = { 4.6, 1.4, 4.2, 2.4, 5.0, 5.0 };
@@ -76,12 +76,12 @@ namespace HolidayTimer
         {
             phase = phase - Math.Floor(phase);
             return phase < StanceFraction ? Stride * (.5 - phase / StanceFraction) :
-                Stride * (-.5 + (phase - StanceFraction) / (1 - StanceFraction));
+                Stride * (-.5 + Smooth((phase - StanceFraction) / (1 - StanceFraction)));
         }
         internal static double FootLift(double phase)
         {
             phase = phase - Math.Floor(phase);
-            return phase < StanceFraction ? 0 : 3.2 * Math.Sin(Math.PI * (phase - StanceFraction) / (1 - StanceFraction));
+            return phase < StanceFraction ? 0 : 2.3 * Math.Sin(Math.PI * (phase - StanceFraction) / (1 - StanceFraction));
         }
         internal static double Smooth(double value)
         { value = Unit(value); return value * value * (3 - 2 * value); }

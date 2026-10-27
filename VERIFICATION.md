@@ -14,6 +14,8 @@ Version 1.8.1 passed 243 core, 221 settings, 250 work-calendar, 241 public-holid
 
 Version 1.9.0 passed 243 core, 232 settings, 250 work-calendar, 241 public-holiday, 99 audio-analysis, 34 update-validation, 145 companion asset, 2,511 companion-motion and 1,815 WPF render-preview checks. The tests cover planted paws, resting and waking, scheme-matched scenery, live animation and hidden-window cleanup. An isolated upgrade from 1.8.1 passed 110 installer checks. The production updater downloaded the public installer and verified its version and digest without installing it.
 
+Version 1.9.1 passed the same core, asset and motion checks, 1,815 WPF render-preview checks, and 110 isolated installer checks including an upgrade from 1.9.0. Walking poses were inspected across the stride.
+
 Run `build.ps1 -Test` for application checks. Run `build-setup.ps1 -Test` after installing the documented Inno Setup compiler for the installer checks. If a previous-version payload is present at `dist/companion-refinement`, the installer test includes that payload in its upgrade check; otherwise it exercises install, update handoff, and uninstall using the current payload.
 
 The setup is unsigned. The GitHub release digest verifies download integrity, but does not replace code signing or protect against compromise of the publishing account. Reduced motion, High Contrast, hardware audio devices, multiple monitors and live Windows glass should also be checked in the target environment.
