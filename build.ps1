@@ -21,6 +21,9 @@ try {
 $sources = @(Get-ChildItem -LiteralPath (Join-Path $taskRoot 'src') -Filter '*.cs' | ForEach-Object FullName)
 $arguments = @('/nologo', '/target:winexe', '/optimize+', '/platform:anycpu', '/main:HolidayTimer.Program', ('/out:' + (Join-Path $output 'HolidayTimer.exe')), ('/win32manifest:' + (Join-Path $taskRoot 'src\app.manifest')))
 $arguments += '/resource:' + $fontResources + ',HolidayTimer.g.resources'
+foreach ($spriteName in @('walking-silhouettes.png','animal-actions.png','wildlife-silhouettes.png','vehicle-silhouettes.png','airplane-silhouette.png')) {
+    $arguments += '/resource:' + (Join-Path $taskRoot ('assets\companions\' + $spriteName)) + ',HolidayTimer.Companions.' + $spriteName
+}
 $references = @('System.dll','System.Core.dll','System.Drawing.dll','System.Windows.Forms.dll','System.Runtime.Serialization.dll','System.Xml.dll','System.Xaml.dll','WPF\WindowsBase.dll','WPF\PresentationCore.dll','WPF\PresentationFramework.dll')
 foreach ($reference in $references) { $arguments += '/reference:' + (Join-Path $framework $reference) }
 foreach ($layout in @('SettingsWindow','WidgetWindow','GreetingWindow','Controls','CalendarStyles')) { $arguments += '/resource:' + (Join-Path $taskRoot ('src\' + $layout + '.xaml')) + ',HolidayTimer.' + $layout + '.xaml' }
@@ -61,6 +64,11 @@ if ($Test) {
     if ($LASTEXITCODE -ne 0) { throw 'Update test build failed.' }
     & $updateTestExe (Join-Path $output 'HolidayTimer.exe')
     if ($LASTEXITCODE -ne 0) { throw 'Update validation checks failed.' }
+    $companionTestExe = Join-Path $output 'CompanionAssetTests.exe'
+    & $compiler /nologo /target:exe /optimize+ ('/out:' + $companionTestExe) ('/reference:' + (Join-Path $framework 'System.Xaml.dll')) ('/reference:' + (Join-Path $framework 'WPF\WindowsBase.dll')) ('/reference:' + (Join-Path $framework 'WPF\PresentationCore.dll')) ('/reference:' + (Join-Path $framework 'WPF\PresentationFramework.dll')) (Join-Path $taskRoot 'tests\CompanionAssetTests.cs')
+    if ($LASTEXITCODE -ne 0) { throw 'Companion asset test build failed.' }
+    & $companionTestExe (Join-Path $output 'HolidayTimer.exe')
+    if ($LASTEXITCODE -ne 0) { throw 'Companion asset checks failed.' }
     $check = Start-Process -FilePath (Join-Path $output 'HolidayTimer.exe') -ArgumentList '--smoke-test' -WindowStyle Hidden -PassThru -Wait
     if ($check.ExitCode -ne 0) { throw 'Interface checks failed. See dist\ui-checks.txt.' }
     Get-Content -LiteralPath (Join-Path $output 'ui-checks.txt')

@@ -12,8 +12,8 @@ namespace HolidayTimer
         };
         private static readonly string[] CompanionDescriptions = {
             "Let the orb shine on its own.",
-            "A dog runs the orbit. Click for a happy hop and tail wag.",
-            "A cat pads along the edge. Click for a curious bounce.",
+            "A dog walks the orbit and occasionally barks. Click for a happy hop and bark.",
+            "A cat pads along the edge and occasionally grooms. Click for a playful pounce.",
             "A bunny hops around the ring. Click for a bigger hop.",
             "A bird flies around the ring. Click for a flap.",
             "A car drives the loop. Click for a quick bounce.",

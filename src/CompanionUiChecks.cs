@@ -37,6 +37,18 @@ namespace HolidayTimer
             Check(!gesture.StartDrag(new Point(50, 50)) && !gesture.EndClick(), "A failed capture cannot move or interact with the gadget");
             Check(CompanionScene.VisitOffset(0) == 0 && CompanionScene.VisitOffset(.525) > 30 && CompanionScene.VisitOffset(1.05) == 0,
                 "An occasional approach returns to the ring in just over one second");
+            Check(CompanionArt.Activity(CompanionKind.Cat, 9.9) == 0 && CompanionArt.Activity(CompanionKind.Cat, 10.35) > .99 &&
+                CompanionArt.Activity(CompanionKind.Cat, 12.4) == 0 && CompanionArt.Activity(CompanionKind.Bird, 11) == 0,
+                "Animal gestures start and finish smoothly and do not affect other companions");
+            CompanionArt studyArt = new CompanionArt(HolidayTheme.Beach, true);
+            if (render) RenderCompanionStudies(studyArt, Path.Combine(root, "previews", "companion-anatomy.png"));
+            foreach (CompanionKind animated in new[] { CompanionKind.Dog, CompanionKind.Cat, CompanionKind.Bunny,
+                CompanionKind.Bird, CompanionKind.Car, CompanionKind.Bicycle, CompanionKind.Motorcycle })
+                Check(!System.Linq.Enumerable.SequenceEqual(ArtPixels(studyArt, animated, 1.2, 0), ArtPixels(studyArt, animated, 1.6, 0)),
+                    animated + " has changing articulated artwork or wheels at a fixed position");
+            Check(!System.Linq.Enumerable.SequenceEqual(ArtPixels(studyArt, CompanionKind.Cat, 11, 0), ArtPixels(studyArt, CompanionKind.Cat, 9, 0)) &&
+                !System.Linq.Enumerable.SequenceEqual(ArtPixels(studyArt, CompanionKind.Dog, 11, 0), ArtPixels(studyArt, CompanionKind.Dog, 9, 0)),
+                "The cat and dog have distinct grooming and barking poses");
             Check(!CompanionScene.ShouldVisit(17, 18, 3, Math.PI / 2) && CompanionScene.ShouldVisit(18, 18, 3, Math.PI / 2) &&
                 !CompanionScene.ShouldVisit(18, 18, 3, 0) && !CompanionScene.ShouldVisit(18, 18, .5, Math.PI / 2),
                 "Visits wait for their interval, start at a side, and do not repeat immediately");
@@ -72,7 +84,7 @@ namespace HolidayTimer
                     Check(WaitFor(delegate { return MaximumAlpha(CompanionPixels(floating)) > 0 || app.TestDispatcherError != null; }, 2000) && app.TestDispatcherError == null,
                         "Companion " + i + " renders visible native artwork" + (app.TestDispatcherError == null ? "" : ": " + app.TestDispatcherError));
                     System.Collections.Generic.HashSet<int> colours = OpaqueColours(CompanionPixels(floating));
-                    Check(ColoursClose(colours), "Companion " + i + " uses a single-colour silhouette");
+                    Check(ColoursClose(colours), "Companion " + i + " uses a single-colour silhouette (" + ColourRanges(colours) + ")");
                     Check(digits.TransformToAncestor((Visual)preview.Content).Transform(new Point()) == digitsAt &&
                         unit.TransformToAncestor((Visual)preview.Content).Transform(new Point()) == unitAt,
                         "Companion " + i + " leaves the countdown's rows stable");
@@ -157,11 +169,57 @@ namespace HolidayTimer
             return Pixels(bitmap);
         }
 
+        private static byte[] ArtPixels(CompanionArt art, CompanionKind kind, double phase, double reaction)
+        {
+            DrawingVisual visual = new DrawingVisual();
+            using (DrawingContext dc = visual.RenderOpen()) art.Draw(dc, kind, phase, reaction, 0);
+            RenderTargetBitmap bitmap = new RenderTargetBitmap(64, 64, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(visual); return Pixels(bitmap);
+        }
+
+        private static void RenderCompanionStudies(CompanionArt art, string path)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            CompanionKind[] kinds = { CompanionKind.Dog, CompanionKind.Dog, CompanionKind.Dog,
+                CompanionKind.Cat, CompanionKind.Cat, CompanionKind.Cat, CompanionKind.Bunny,
+                CompanionKind.Bird, CompanionKind.Airplane, CompanionKind.Car, CompanionKind.Bicycle, CompanionKind.Motorcycle };
+            string[] labels = { "Dog walk", "Dog step", "Dog bark", "Cat walk", "Cat step", "Cat groom",
+                "Bunny", "Bird", "Airplane", "Car", "Bicycle", "Motorcycle" };
+            double[] phases = { 1.2, 1.7, 11.1, 1.2, 1.7, 11.1, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2 };
+            DrawingVisual visual = new DrawingVisual();
+            using (DrawingContext dc = visual.RenderOpen())
+            {
+                dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(244, 247, 249)), null, new Rect(0, 0, 600, 560));
+                for (int i = 0; i < kinds.Length; i++)
+                {
+                    int col = i % 3, row = i / 3;
+                    dc.PushTransform(new TranslateTransform(col * 200 + 31, row * 140 + 1));
+                    dc.PushTransform(new ScaleTransform(2.15, 2.15));
+                    art.Draw(dc, kinds[i], phases[i], 0, 0); dc.Pop(); dc.Pop();
+                    FormattedText label = new FormattedText(labels[i], CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+                        new Typeface("Segoe UI"), 12, Brushes.DimGray, 1.0);
+                    dc.DrawText(label, new Point(col * 200 + 12, row * 140 + 118));
+                }
+            }
+            RenderTargetBitmap image = new RenderTargetBitmap(600, 560, 96, 96, PixelFormats.Pbgra32);
+            image.Render(visual); PngBitmapEncoder encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
+            using (FileStream file = File.Create(path)) encoder.Save(file);
+        }
+
         private static System.Collections.Generic.HashSet<int> OpaqueColours(byte[] pixels)
         {
             System.Collections.Generic.HashSet<int> colours = new System.Collections.Generic.HashSet<int>();
             for (int i = 0; i + 3 < pixels.Length; i += 4)
-                if (pixels[i + 3] == 255) colours.Add((pixels[i] << 16) | (pixels[i + 1] << 8) | pixels[i + 2]);
+            {
+                int alpha = pixels[i + 3];
+                if (alpha < 128) continue;
+                // Recover colour from partially transparent antialiased pixels
+                // before comparing it with the selected scheme.
+                int b = Math.Min(255, (pixels[i] * 255 + alpha / 2) / alpha);
+                int g = Math.Min(255, (pixels[i + 1] * 255 + alpha / 2) / alpha);
+                int r = Math.Min(255, (pixels[i + 2] * 255 + alpha / 2) / alpha);
+                colours.Add((r << 16) | (g << 8) | b);
+            }
             return colours;
         }
 
@@ -176,9 +234,23 @@ namespace HolidayTimer
                 minG = Math.Min(minG, g); maxG = Math.Max(maxG, g);
                 minB = Math.Min(minB, b); maxB = Math.Max(maxB, b);
             }
-            // WPF's antialiasing can round overlapping translucent edge pixels
-            // by a couple of channel values even with one silhouette brush.
-            return maxR - minR <= 3 && maxG - minG <= 3 && maxB - minB <= 3;
+            // Premultiplied-alpha and antialiasing can round a colour by a
+            // few channel values even when one brush supplies the silhouette.
+            return maxR - minR <= 8 && maxG - minG <= 8 && maxB - minB <= 8;
+        }
+
+        private static string ColourRanges(System.Collections.Generic.HashSet<int> colours)
+        {
+            if (colours.Count == 0) return "no pixels above the opacity threshold";
+            int minR = 255, minG = 255, minB = 255, maxR = 0, maxG = 0, maxB = 0;
+            foreach (int colour in colours)
+            {
+                int r = (colour >> 16) & 255, g = (colour >> 8) & 255, b = colour & 255;
+                minR = Math.Min(minR, r); maxR = Math.Max(maxR, r);
+                minG = Math.Min(minG, g); maxG = Math.Max(maxG, g);
+                minB = Math.Min(minB, b); maxB = Math.Max(maxB, b);
+            }
+            return String.Format(CultureInfo.InvariantCulture, "R {0}-{1}, G {2}-{3}, B {4}-{5}", minR, maxR, minG, maxG, minB, maxB);
         }
 
         private static int RepresentativeColour(System.Collections.Generic.HashSet<int> colours)

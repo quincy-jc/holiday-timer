@@ -3,5 +3,5 @@ using System.Reflection;
 [assembly: AssemblyTitle("Holiday Timer")]
 [assembly: AssemblyDescription("A glass countdown orb with optional music response")]
 [assembly: AssemblyProduct("Holiday Timer")]
-[assembly: AssemblyVersion("1.8.0.0")]
-[assembly: AssemblyFileVersion("1.8.0.0")]
+[assembly: AssemblyVersion("1.8.1.0")]
+[assembly: AssemblyFileVersion("1.8.1.0")]

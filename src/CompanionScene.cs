@@ -27,8 +27,9 @@ namespace HolidayTimer
                 double ringTime = NativeOrbEffects.Contains(scene.EffectCanvas) ? NativeOrbEffects.SceneTime(scene.EffectCanvas) : scene.Time;
                 double ringWave = Math.Sin(ringTime * (scene.Effect == OrbEffect.Glass ? 1.57 : 2.4)) * scene.Intensity *
                     (scene.Effect == OrbEffect.ShockwavePulses || scene.Effect == OrbEffect.WaterRipples ? 4.0 : 2.5);
-                double bounce = Math.Sin(scene.Time * (scene.Kind == CompanionKind.Bird ? 6.5 : 5.0)) *
-                    (scene.Kind == CompanionKind.Bunny ? 2.5 : 1.1);
+                double bounce = scene.Kind == CompanionKind.Bunny
+                    ? Math.Pow(Math.Max(0, Math.Sin(scene.Time * 4.5)), 2) * 4.5
+                    : Math.Sin(scene.Time * (scene.Kind == CompanionKind.Bird ? 6.5 : 5.0)) * 1.1;
                 double jump = reaction * Math.Sin(Math.Min(1, scene.ReactionAge / .5) * Math.PI) *
                     (scene.Kind == CompanionKind.Bunny ? 12 : 7);
                 double radius = Math.Min(139, 125 + bounce + jump + ringWave + pulse * (5 + 4 * scene.Intensity) - VisitOffset(scene.VisitAge));
@@ -182,6 +183,10 @@ namespace HolidayTimer
                 scene.Effect == OrbEffect.WaterRipples || scene.Effect == OrbEffect.LiquidMetal ? .88 : 1;
             double reactionBoost = scene.ReactionAge < 2 ? .6 * Math.Exp(-scene.ReactionAge * 3.3) : 0;
             double pace = effectPace * (.20 + .10 * scene.Intensity) * (1 + Math.Min(1.6, audio) + reactionBoost * .35);
+            double activity = CompanionArt.Activity(scene.Kind, scene.Time);
+            // Pause at the edge for a short bark or grooming gesture, with a
+            // smooth approach and departure instead of skating through it.
+            pace *= 1 - activity * .94 * (1 - Math.Min(1, reactionBoost));
             scene.Time += elapsed * (1 + Math.Min(1.5, audio) + reactionBoost);
             scene.Angle = (scene.Angle + elapsed * pace) % (Math.PI * 2);
             scene.ReactionAge = Math.Min(3, scene.ReactionAge + elapsed);
@@ -189,7 +194,7 @@ namespace HolidayTimer
             scene.VisitAge = Math.Min(3, scene.VisitAge + elapsed);
             // Briefly approach from a side, behind the digits, and return.
             // A visit lasts just over one second and never lingers on the text.
-            if (ShouldVisit(scene.Lifetime, scene.NextVisit, scene.VisitAge, scene.Angle))
+            if (activity < .05 && ShouldVisit(scene.Lifetime, scene.NextVisit, scene.VisitAge, scene.Angle))
             { scene.VisitAge = 0; scene.NextVisit = scene.Lifetime + 32; }
         }
 

@@ -4,7 +4,7 @@ A native Windows countdown with a live glass panel, animated orb and tray icon. 
 
 ## Install from one file
 
-Share `dist/companions-setup/HolidayTimerSetup.exe` for version 1.8.0. Double-click and choose Install. It updates the existing app without duplicate Apps entries and preserves preferences. A new or expired countdown automatically loads the next NSW public holiday, and a settings picker can refresh dates from the NSW Government. Previous artifacts retain their directories.
+Share `dist/companion-refinement-setup/HolidayTimerSetup.exe` for version 1.8.1. Double-click and choose Install. It updates the existing app without duplicate Apps entries and preserves preferences. A new or expired countdown automatically loads the next NSW public holiday, and a settings picker can refresh dates from the NSW Government. Previous artifacts retain their directories.
 
 The setup installs for the current Windows user at `%LOCALAPPDATA%\Programs\HolidayTimer`. On Windows 11 it needs no administrator password, restart, or internet connection. It adds a Start menu shortcut and **Holiday Timer** to **Settings → Apps → Installed apps**, where you can choose **Uninstall**.
 
@@ -14,9 +14,9 @@ The single setup file contains the app, configuration, software licence, and fon
 
 ## Open the portable build
 
-The current portable app is `dist/companions-update/HolidayTimer.exe`. Keep its configuration and licences beside it. Prior builds remain in their existing folders.
+The current portable app is `dist/companion-refinement/HolidayTimer.exe`. Keep its configuration and licences beside it. Prior builds remain in their existing folders.
 
-If another copy is running, **save any edits you want to keep**, then choose **Exit Holiday Timer** from its system tray menu. Open `dist/companions-update/HolidayTimer.exe`. The app is single-instance: opening another copy while the old one is running activates the existing app.
+If another copy is running, **save any edits you want to keep**, then choose **Exit Holiday Timer** from its system tray menu. Open `dist/companion-refinement/HolidayTimer.exe`. The app is single-instance: opening another copy while the old one is running activates the existing app.
 
 Keep `HolidayTimer.exe.config`, `LICENSE.txt` and `Inter-LICENSE.txt` beside the executable. Inter Display is bundled, and the app uses the .NET Framework included with Windows 11.
 
@@ -53,19 +53,19 @@ Settings groups Countdown, Appearance, Companion, Music, Celebration and Updates
 
 ## Companion
 
-Choose None, Dog, Cat, Bunny, Bird, Car, Bicycle, Motorcycle or Airplane in **Companion**. One silhouette follows the orb's selected effect and colour scheme. Click the countdown or focus it and press Space or Enter for a brief reaction; drag it to move as usual. A companion may briefly approach the countdown, which stays in front of the artwork. **Try a reaction** and **Try on my desktop** preview the unsaved choice. Save remembers it; Cancel restores the saved setting. Existing settings default to None.
+Choose None, Dog, Cat, Bunny, Bird, Car, Bicycle, Motorcycle or Airplane in **Companion**. One silhouette follows the orb's selected effect and colour scheme. Animals walk, hop or fly; the cat occasionally grooms and the dog barks silently. Vehicle wheels rotate, and the plane banks in flight. Click the countdown or focus it and press Space or Enter for a brief reaction; drag it to move as usual. A companion may briefly approach the countdown, which stays in front of the artwork. **Try a reaction** and **Try on my desktop** preview the unsaved choice. Save remembers it; Cancel restores the saved setting. Existing settings default to None.
 
 When music response is enabled, the companion also responds to the selected audio output. Windows reduced-motion and High Contrast settings keep it still. Motion pauses while the orb is hidden or minimized.
 
 ## Updates
 
-Version 1.8.0 checks the public `quincy-jc/holiday-timer` GitHub Releases page at startup and approximately every six hours. **Settings → Updates** or **Check for updates** in the tray lets you check immediately. A tray notification appears when a newer stable version is available. Offline or failed checks leave the existing countdown working.
+Version 1.8.1 checks the public `quincy-jc/holiday-timer` GitHub Releases page at startup and approximately every six hours. **Settings → Updates** or **Check for updates** in the tray lets you check immediately. A tray notification appears when a newer stable version is available. Offline or failed checks leave the existing countdown working.
 
 Choose **Download and install**, save any settings edits, and confirm. The app verifies the download against the release's SHA-256 digest and version, closes, and the per-user installer updates the existing installation and reopens it. Updates are never installed without your action. If settings is closed while a download finishes, the app waits until you return and select **Install update**. An unsigned installer may still show a Windows security prompt; the digest checks download integrity and does not replace code signing.
 
 An existing 1.7.0 or older installation needs one manual install of the current version to gain working update checks; the 1.7.0 updater could not contact GitHub. Exit the old app from its tray menu before running that installer. Version 1.7.1 and later can update from within the app. Portable copies open the release page instead of silently installing to a different location.
 
-For a later release, update the assembly and installer version numbers in `src/AssemblyInfo.cs` and `installer/HolidayTimer.iss`, build and test the setup, and publish it as `HolidayTimerSetup.exe` on a non-prerelease GitHub release with a matching stable three-part tag such as `v1.8.0`. GitHub must expose the asset's SHA-256 digest before the app offers the release.
+For a later release, update the assembly and installer version numbers in `src/AssemblyInfo.cs` and `installer/HolidayTimer.iss`, build and test the setup, and publish it as `HolidayTimerSetup.exe` on a non-prerelease GitHub release with a matching stable three-part tag such as `v1.8.1`. GitHub must expose the asset's SHA-256 digest before the app offers the release.
 
 ## Music response
 
@@ -120,10 +120,10 @@ Preferences are stored at `%LOCALAPPDATA%\HolidayTimer\settings.json`, with the 
 Build and run isolated checks without replacing the preserved original:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 -Test -OutputDirectory dist\companions-update
+powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 -Test -OutputDirectory dist\companion-refinement
 ```
 
-`dist/companions-update/HolidayTimer.exe --render-preview` renders the actual WPF layouts into the updated build's `previews` folder without changing personal preferences or login registration. Layout captures use mock desktop backdrops; music examples use synthetic signals. Live Windows blur and actual audio capture have separate native evidence. See `VERIFICATION.md` for the current checks and evidence.
+`dist/companion-refinement/HolidayTimer.exe --render-preview` renders the actual WPF layouts into the updated build's `previews` folder without changing personal preferences or login registration. Layout captures use mock desktop backdrops; music examples use synthetic signals. Live Windows blur and actual audio capture have separate native evidence. See `VERIFICATION.md` for the current checks and evidence.
 
 To build the single-file setup and run the application and isolated installation checks:
 
