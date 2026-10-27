@@ -8,7 +8,7 @@ The initial 1.7.0 release used an unsupported HTTP header assignment and could n
 
 Version 1.7.2 adds the MIT licence for the project and includes it alongside the existing Inter Display font licence in the installer. The application checks passed, and an isolated 1.7.1 upgrade, handoff and uninstall passed 109 checks. The public source and its commit history were reviewed for common credential and personal-path patterns; automated checks cannot guarantee the absence of every sensitive detail.
 
-Version 1.8.0 passed 243 core, 221 settings, 250 work-calendar, 241 public-holiday, 99 audio-analysis, 34 update-validation and 1,767 WPF integration checks. Controlled frames cover all eight silhouettes, colour schemes, every orb effect, click/drag classification, short visits, audio response and persistence. An isolated upgrade from 1.7.2 passed 110 installer checks.
+Version 1.8.0 passed 243 core, 221 settings, 250 work-calendar, 241 public-holiday, 99 audio-analysis, 34 update-validation and 1,767 WPF integration checks. Controlled frames cover all eight silhouettes, colour schemes, every orb effect, click/drag classification, short visits, audio response and persistence. An isolated upgrade from 1.7.2 passed 110 installer checks. The production update client also checked and downloaded the published 1.8.0 installer, verifying its version and digest without installing it.
 
 Run `build.ps1 -Test` for application checks. Run `build-setup.ps1 -Test` after installing the documented Inno Setup compiler for the installer checks. If a previous-version payload is present at `dist/mit-update`, the installer test includes that payload in its upgrade check; otherwise it exercises install, update handoff, and uninstall using the current payload.
 
