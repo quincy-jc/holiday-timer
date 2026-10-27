@@ -27,13 +27,19 @@ namespace HolidayTimer
                 double ringTime = NativeOrbEffects.Contains(scene.EffectCanvas) ? NativeOrbEffects.SceneTime(scene.EffectCanvas) : scene.Time;
                 double ringWave = Math.Sin(ringTime * (scene.Effect == OrbEffect.Glass ? 1.57 : 2.4)) * scene.Intensity *
                     (scene.Effect == OrbEffect.ShockwavePulses || scene.Effect == OrbEffect.WaterRipples ? 4.0 : 2.5);
-                double bounce = scene.Kind == CompanionKind.Bunny
-                    ? Math.Pow(Math.Max(0, Math.Sin(scene.Time * 4.5)), 2) * 4.5
-                    : Math.Sin(scene.Time * (scene.Kind == CompanionKind.Bird ? 6.5 : 5.0)) * 1.1;
+                double bounce = scene.Motion.Action != CompanionAction.Travel ? 0 : scene.Kind == CompanionKind.Bunny
+                    ? Math.Pow(Math.Max(0, Math.Sin(CompanionMotion.StepPhase(scene.Motion.Distance) * Math.PI * 2)), 2) * 4.5
+                    : Math.Sin(CompanionMotion.StepPhase(scene.Motion.Distance) * Math.PI * 4) * .7;
                 double jump = reaction * Math.Sin(Math.Min(1, scene.ReactionAge / .5) * Math.PI) *
                     (scene.Kind == CompanionKind.Bunny ? 12 : 7);
-                double radius = Math.Min(139, 125 + bounce + jump + ringWave + pulse * (5 + 4 * scene.Intensity) - VisitOffset(scene.VisitAge));
-                double angle = -Math.PI / 2 + scene.Angle;
+                // Ground companions have their feet at y=51 in a 64-unit
+                // sprite, 19 units below its centre. Put those feet on the
+                // 125-unit rim so angular travel matches the gait distance.
+                double groundAnchor = scene.Kind == CompanionKind.Bird || scene.Kind == CompanionKind.Airplane
+                    ? 0 : 19 * CompanionMotion.ArtScale;
+                double radius = Math.Min(149, CompanionMotion.Radius + groundAnchor + bounce + jump + ringWave +
+                    pulse * (5 + 4 * scene.Intensity) - VisitOffset(scene.VisitAge));
+                double angle = -Math.PI / 2 + scene.Motion.Angle;
                 double x = 172 + Math.Cos(angle) * radius;
                 double y = 172 + Math.Sin(angle) * radius;
                 double tilt = angle * 180 / Math.PI + 90;
@@ -41,12 +47,15 @@ namespace HolidayTimer
                     tilt += Math.Sin(scene.Time * 2.5) * 4 + reaction * 9;
                 else if (scene.Kind == CompanionKind.Car || scene.Kind == CompanionKind.Bicycle || scene.Kind == CompanionKind.Motorcycle)
                     tilt += reaction * Math.Sin(scene.ReactionAge * 12) * 6;
+                if (scene.Scenery) CompanionScenery.Draw(dc, scene.Kind, scene.Art.Ink, scene.Time, scene.Motion.Action, scene.Effect);
                 dc.PushTransform(new TranslateTransform(x, y));
                 dc.PushTransform(new RotateTransform(tilt));
-                dc.PushTransform(new ScaleTransform(.95, .95));
+                dc.PushTransform(new ScaleTransform(CompanionMotion.ArtScale, CompanionMotion.ArtScale));
+                dc.PushTransform(new ScaleTransform(scene.Motion.Direction, 1));
                 dc.PushTransform(new TranslateTransform(-32, -32));
-                scene.Art.Draw(dc, scene.Kind, scene.Time, reaction, audio);
-                dc.Pop(); dc.Pop(); dc.Pop(); dc.Pop();
+                scene.Art.Draw(dc, scene.Kind, scene.Time, reaction, audio, scene.Motion.Action, scene.Motion.Distance, scene.Motion.Age);
+                if (scene.Motion.Action == CompanionAction.Play) CompanionScenery.DrawPlay(dc, scene.Kind, scene.Art.Ink, scene.Motion.Age);
+                dc.Pop(); dc.Pop(); dc.Pop(); dc.Pop(); dc.Pop();
             }
         }
 
@@ -59,9 +68,10 @@ namespace HolidayTimer
             internal CompanionKind Kind;
             internal HolidayTheme Theme;
             internal OrbEffect Effect;
-            internal bool Light, Animate, Loaded, Attached, MusicEnabled;
-            internal double Intensity, Time = .7, Angle = .55, ReactionAge = 3, MusicIntensity = .5;
+            internal bool Light, Animate, Loaded, Attached, MusicEnabled, Scenery;
+            internal double Intensity, Time = .7, ReactionAge = 3, MusicIntensity = .5;
             internal double Lifetime, NextVisit = 18, VisitAge = 3;
+            internal CompanionMotion Motion = new CompanionMotion();
             internal long LastFrame, LastSample, Frames;
             internal AudioSignal Signal = AudioSignal.Zero;
             internal readonly MusicMotion Music = new MusicMotion();
@@ -77,7 +87,7 @@ namespace HolidayTimer
         { get { int count = 0; foreach (Scene scene in Scenes.Values) if (scene.Attached) count++; return count; } }
 
         internal static void Apply(Canvas canvas, Window host, CompanionKind kind, HolidayTheme theme,
-            bool light, bool animate, OrbEffect effect, double intensity)
+            bool light, bool animate, OrbEffect effect, double intensity, bool scenery = true)
         {
             if (canvas == null || host == null) throw new ArgumentNullException();
             canvas.VerifyAccess();
@@ -89,13 +99,14 @@ namespace HolidayTimer
                 else
                 {
                     if (scene.Theme != theme || scene.Light != light) scene.Art = new CompanionArt(theme, light);
-                    scene.Kind = kind; scene.Theme = theme; scene.Light = light;
+                    if (scene.Kind != kind) scene.Motion = new CompanionMotion();
+                    scene.Kind = kind; scene.Theme = theme; scene.Light = light; scene.Scenery = scenery;
                     scene.Animate = animate; scene.Effect = effect; scene.Intensity = Unit(intensity);
                     Paint(scene); Sync(scene); return;
                 }
             }
             scene = new Scene { Canvas = canvas, Host = host, Kind = kind, Theme = theme, Light = light,
-                Animate = animate, Effect = effect, Intensity = Unit(intensity), Loaded = canvas.IsLoaded,
+                Animate = animate, Effect = effect, Intensity = Unit(intensity), Loaded = canvas.IsLoaded, Scenery = scenery,
                 Art = new CompanionArt(theme, light), Surface = new Surface() };
             scene.EffectCanvas = Layouts.Find<Canvas>(host, canvas.Name == "SettingsCompanionCanvas" ? "SettingsOrbCanvas" : "OrbCanvas");
             scene.Surface.Owner = scene;
@@ -142,7 +153,7 @@ namespace HolidayTimer
             // Reduced motion stays still; a test or manual preview can still
             // render an explicit reaction without changing Windows settings.
             if (!MotionAllowed(scene)) return false;
-            scene.ReactionAge = 0; Paint(scene); return true;
+            scene.ReactionAge = 0; scene.Motion.Interact(); Paint(scene); return true;
         }
 
         private static bool MotionAllowed(Scene scene)
@@ -182,19 +193,14 @@ namespace HolidayTimer
             double effectPace = scene.Effect == OrbEffect.ShockwavePulses || scene.Effect == OrbEffect.CometSwarm ? 1.16 :
                 scene.Effect == OrbEffect.WaterRipples || scene.Effect == OrbEffect.LiquidMetal ? .88 : 1;
             double reactionBoost = scene.ReactionAge < 2 ? .6 * Math.Exp(-scene.ReactionAge * 3.3) : 0;
-            double pace = effectPace * (.20 + .10 * scene.Intensity) * (1 + Math.Min(1.6, audio) + reactionBoost * .35);
-            double activity = CompanionArt.Activity(scene.Kind, scene.Time);
-            // Pause at the edge for a short bark or grooming gesture, with a
-            // smooth approach and departure instead of skating through it.
-            pace *= 1 - activity * .94 * (1 - Math.Min(1, reactionBoost));
+            scene.Motion.Step(elapsed, scene.Kind, scene.Intensity, audio + reactionBoost * .35, effectPace);
             scene.Time += elapsed * (1 + Math.Min(1.5, audio) + reactionBoost);
-            scene.Angle = (scene.Angle + elapsed * pace) % (Math.PI * 2);
             scene.ReactionAge = Math.Min(3, scene.ReactionAge + elapsed);
             scene.Lifetime += elapsed;
             scene.VisitAge = Math.Min(3, scene.VisitAge + elapsed);
             // Briefly approach from a side, behind the digits, and return.
             // A visit lasts just over one second and never lingers on the text.
-            if (activity < .05 && ShouldVisit(scene.Lifetime, scene.NextVisit, scene.VisitAge, scene.Angle))
+            if (scene.Motion.Action == CompanionAction.Travel && ShouldVisit(scene.Lifetime, scene.NextVisit, scene.VisitAge, scene.Motion.Angle))
             { scene.VisitAge = 0; scene.NextVisit = scene.Lifetime + 32; }
         }
 
@@ -207,7 +213,7 @@ namespace HolidayTimer
         }
 
         internal static bool ShouldVisit(double lifetime, double nextVisit, double previousAge, double angle)
-        { return lifetime >= nextVisit && previousAge >= 2 && Math.Abs(Math.Sin(-Math.PI / 2 + angle)) < .25; }
+        { return lifetime >= nextVisit && previousAge >= 2 && Math.Abs(Math.Sin(-Math.PI / 2 + angle)) < .8; }
 
         private static void Paint(Scene scene)
         { scene.Surface.InvalidateVisual(); scene.Frames++; }
@@ -244,14 +250,19 @@ namespace HolidayTimer
         { Scene scene; return canvas != null && Scenes.TryGetValue(canvas, out scene) ? scene.Effect : OrbEffect.Glass; }
         internal static HolidayTheme Scheme(Canvas canvas)
         { Scene scene; return canvas != null && Scenes.TryGetValue(canvas, out scene) ? scene.Theme : HolidayTheme.Beach; }
+        internal static bool Scenery(Canvas canvas)
+        { Scene scene; return canvas != null && Scenes.TryGetValue(canvas, out scene) && scene.Scenery; }
+        internal static CompanionAction Action(Canvas canvas)
+        { Scene scene; return canvas != null && Scenes.TryGetValue(canvas, out scene) ? scene.Motion.Action : CompanionAction.Rest; }
         internal static double Angle(Canvas canvas)
-        { Scene scene; return canvas != null && Scenes.TryGetValue(canvas, out scene) ? scene.Angle : 0; }
+        { Scene scene; return canvas != null && Scenes.TryGetValue(canvas, out scene) ? scene.Motion.Angle : 0; }
         internal static long FrameCount(Canvas canvas) { Scene scene; return canvas != null && Scenes.TryGetValue(canvas, out scene) ? scene.Frames : 0; }
         internal static void RenderAt(Canvas canvas, double time, double angle, double reactionAge, AudioSignal signal, double visitAge = 3)
         {
             Scene scene;
             if (canvas == null || !Scenes.TryGetValue(canvas, out scene)) throw new InvalidOperationException("No companion is selected.");
-            scene.Time = Math.Max(0, time); scene.Angle = angle; scene.ReactionAge = Math.Max(0, reactionAge);
+            scene.Time = Math.Max(0, time); scene.Motion.SetForTest(angle, time * 28); scene.ReactionAge = Math.Max(0, reactionAge);
+            if (reactionAge < 2) scene.Motion.Interact();
             scene.VisitAge = Math.Max(0, visitAge);
             scene.Signal = signal ?? AudioSignal.Zero; scene.MusicEnabled = signal != null;
             if (scene.MusicEnabled) scene.Music.Receive(signal.Level, signal.Bass, signal.Mid, signal.High, signal.Beat, 1);

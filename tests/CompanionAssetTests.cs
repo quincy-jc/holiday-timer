@@ -18,7 +18,7 @@ internal static class CompanionAssetTests
         Assembly app = Assembly.LoadFrom(Path.GetFullPath(args[0]));
         Type animals = app.GetType("HolidayTimer.CompanionSprites", true);
         RuntimeHelpers.RunClassConstructor(animals.TypeHandle);
-        foreach (string name in new[] { "CatWalk", "DogWalk", "CatGroom", "DogBark", "BunnyHop", "BirdFly" })
+        foreach (string name in new[] { "CatWalk", "DogWalk", "CatGroom", "DogBark", "BunnyHop", "BirdFly", "Resting" })
         {
             Array frames = (Array)animals.GetField(name, BindingFlags.NonPublic | BindingFlags.Static).GetValue(null);
             Check(frames.Length == 4, name + " has four complete poses");

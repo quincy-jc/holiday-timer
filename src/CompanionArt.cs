@@ -9,6 +9,7 @@ namespace HolidayTimer
     internal sealed class CompanionArt
     {
         private readonly Brush silhouette, glow;
+        internal Brush Ink { get { return silhouette; } }
 
         internal CompanionArt(HolidayTheme theme, bool light)
         {
@@ -25,7 +26,8 @@ namespace HolidayTimer
             halo.Freeze(); glow = halo;
         }
 
-        internal void Draw(DrawingContext dc, CompanionKind kind, double phase, double reaction, double audio)
+        internal void Draw(DrawingContext dc, CompanionKind kind, double phase, double reaction, double audio,
+            CompanionAction action, double distance, double age)
         {
             dc.DrawEllipse(glow, null, new Point(32, 33), 33 + 2 * audio, 26 + 2 * audio);
             switch (kind)
@@ -33,26 +35,13 @@ namespace HolidayTimer
                 case CompanionKind.Dog:
                 case CompanionKind.Cat:
                 case CompanionKind.Bunny:
-                case CompanionKind.Bird: CompanionSprites.Draw(dc, kind, phase, reaction, silhouette); break;
+                case CompanionKind.Bird: CompanionSprites.Draw(dc, kind, phase, reaction, silhouette, action, distance, age); break;
                 case CompanionKind.Car:
                 case CompanionKind.Bicycle:
                 case CompanionKind.Motorcycle:
-                case CompanionKind.Airplane: VehicleSprites.Draw(dc, kind, phase, silhouette); break;
+                case CompanionKind.Airplane: VehicleSprites.Draw(dc, kind, distance, silhouette); break;
             }
         }
-
-        // Brief actions happen on the outer ring, never as a long stay over
-        // the countdown. The same envelope slows the animal's orbit naturally.
-        internal static double Activity(CompanionKind kind, double time)
-        {
-            if (kind != CompanionKind.Dog && kind != CompanionKind.Cat) return 0;
-            double cycle = Math.Max(0, time) % 16;
-            if (cycle < 10 || cycle >= 12.4) return 0;
-            return Smooth((cycle - 10) / .35) * Smooth((12.4 - cycle) / .35);
-        }
-
-        private static double Smooth(double x)
-        { x = Math.Max(0, Math.Min(1, x)); return x * x * (3 - 2 * x); }
 
     }
 }

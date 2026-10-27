@@ -17,10 +17,12 @@ namespace HolidayTimer
             ComboBox choice = Layouts.Find<ComboBox>(form, "CompanionChoice");
             Canvas embedded = Layouts.Find<Canvas>(form, "SettingsCompanionCanvas");
             TextBlock description = Layouts.Find<TextBlock>(form, "CompanionDescription");
+            CheckBox scenery = Layouts.Find<CheckBox>(form, "CompanionScenery");
             Check(choice.Items.Count == 9 && choice.SelectedIndex == 0, "All eight optional companions and None are available");
             Check(!String.IsNullOrEmpty(AutomationProperties.GetName(choice)) && !String.IsNullOrEmpty(AutomationProperties.GetName(Layouts.Find<Button>(form, "TryCompanion"))),
                 "Companion controls have accessible names");
             Check(!CompanionScene.Contains(embedded), "The default orb has no companion scene");
+            Check(scenery.IsChecked == true && !scenery.IsEnabled, "Scenery is ready but disabled until a companion is selected");
             int initialScenes = CompanionScene.ActiveSceneCount;
             Check(!CompanionInteraction.IsDrag(new Point(10, 10), new Point(10, 10)) &&
                 CompanionInteraction.IsDrag(new Point(10, 10), new Point(10 + SystemParameters.MinimumHorizontalDragDistance + 1, 10)),
@@ -37,21 +39,23 @@ namespace HolidayTimer
             Check(!gesture.StartDrag(new Point(50, 50)) && !gesture.EndClick(), "A failed capture cannot move or interact with the gadget");
             Check(CompanionScene.VisitOffset(0) == 0 && CompanionScene.VisitOffset(.525) > 30 && CompanionScene.VisitOffset(1.05) == 0,
                 "An occasional approach returns to the ring in just over one second");
-            Check(CompanionArt.Activity(CompanionKind.Cat, 9.9) == 0 && CompanionArt.Activity(CompanionKind.Cat, 10.35) > .99 &&
-                CompanionArt.Activity(CompanionKind.Cat, 12.4) == 0 && CompanionArt.Activity(CompanionKind.Bird, 11) == 0,
-                "Animal gestures start and finish smoothly and do not affect other companions");
             CompanionArt studyArt = new CompanionArt(HolidayTheme.Beach, true);
-            if (render) RenderCompanionStudies(studyArt, Path.Combine(root, "previews", "companion-anatomy.png"));
+            if (render)
+            {
+                RenderCompanionStudies(studyArt, Path.Combine(root, "previews", "companion-anatomy.png"));
+                RenderWalkingStudies(studyArt, Path.Combine(root, "previews", "companion-walking.png"));
+            }
             foreach (CompanionKind animated in new[] { CompanionKind.Dog, CompanionKind.Cat, CompanionKind.Bunny,
                 CompanionKind.Bird, CompanionKind.Car, CompanionKind.Bicycle, CompanionKind.Motorcycle })
                 Check(!System.Linq.Enumerable.SequenceEqual(ArtPixels(studyArt, animated, 1.2, 0), ArtPixels(studyArt, animated, 1.6, 0)),
                     animated + " has changing articulated artwork or wheels at a fixed position");
-            Check(!System.Linq.Enumerable.SequenceEqual(ArtPixels(studyArt, CompanionKind.Cat, 11, 0), ArtPixels(studyArt, CompanionKind.Cat, 9, 0)) &&
-                !System.Linq.Enumerable.SequenceEqual(ArtPixels(studyArt, CompanionKind.Dog, 11, 0), ArtPixels(studyArt, CompanionKind.Dog, 9, 0)),
+            Check(!System.Linq.Enumerable.SequenceEqual(ArtPixels(studyArt, CompanionKind.Cat, 1, 0, CompanionAction.Play), ArtPixels(studyArt, CompanionKind.Cat, 1, 0)) &&
+                !System.Linq.Enumerable.SequenceEqual(ArtPixels(studyArt, CompanionKind.Dog, 1, 0, CompanionAction.Play), ArtPixels(studyArt, CompanionKind.Dog, 1, 0)),
                 "The cat and dog have distinct grooming and barking poses");
             Check(!CompanionScene.ShouldVisit(17, 18, 3, Math.PI / 2) && CompanionScene.ShouldVisit(18, 18, 3, Math.PI / 2) &&
                 !CompanionScene.ShouldVisit(18, 18, 3, 0) && !CompanionScene.ShouldVisit(18, 18, .5, Math.PI / 2),
                 "Visits wait for their interval, start at a side, and do not repeat immediately");
+            CheckLiveCompanionMotion();
 
             app.ShowGadgetPreview(form);
             Window preview = app.GadgetPreview;
@@ -91,6 +95,15 @@ namespace HolidayTimer
                 }
                 choice.SelectedIndex = (int)CompanionKind.Dog;
                 Check(WaitFor(delegate { return CompanionScene.Selected(floating) == CompanionKind.Dog; }), "Dog preview is ready for motion checks");
+                scenery.IsChecked = false;
+                Check(WaitFor(delegate { return !CompanionScene.Scenery(embedded) && !CompanionScene.Scenery(floating); }),
+                    "Turning scenery off updates both unsaved previews");
+                AppSettings sceneryDraft; string sceneryError;
+                Check(app.ReadForm(form, false, out sceneryDraft, out sceneryError) && !sceneryDraft.CompanionScenery && store.Load().CompanionScenery,
+                    "Scenery changes remain in the draft until saved");
+                scenery.IsChecked = true;
+                Check(WaitFor(delegate { return CompanionScene.Scenery(embedded) && CompanionScene.Scenery(floating); }),
+                    "Turning scenery on restores both previews");
                 CompanionScene.RenderAt(floating, 1.2, 0, 3, null); Pump(40); byte[] idle = CompanionPixels(floating);
                 CompanionScene.RenderAt(floating, 1.2, 0, .18, null); Pump(40); byte[] reaction = CompanionPixels(floating);
                 CompanionScene.RenderAt(floating, 1.2, 0, 3, new AudioSignal(.7, .8, .6, .4, .9)); Pump(40); byte[] music = CompanionPixels(floating);
@@ -102,7 +115,8 @@ namespace HolidayTimer
                 CompanionScene.RenderAt(floating, 1.2, 0, 3, energetic); CompanionScene.AdvanceForTest(floating, .1, energetic);
                 Check(CompanionScene.Angle(floating) > idleAdvance * 1.2, "Real audio envelopes make the companion move more energetically");
                 CompanionScene.RenderAt(floating, 1.2, 0, 0, null); CompanionScene.AdvanceForTest(floating, .1, null);
-                Check(CompanionScene.Angle(floating) > idleAdvance, "A click reaction briefly increases the companion's motion");
+                Check(CompanionScene.Action(floating) == CompanionAction.Play && Math.Abs(CompanionScene.Angle(floating)) < .00001,
+                    "A click starts a stationary play reaction instead of sliding");
                 ComboBox schemes = Layouts.Find<ComboBox>(form, "ColourScheme");
                 int previousScheme = schemes.SelectedIndex;
                 System.Collections.Generic.HashSet<int> schemeColours = new System.Collections.Generic.HashSet<int>();
@@ -169,10 +183,39 @@ namespace HolidayTimer
             return Pixels(bitmap);
         }
 
-        private static byte[] ArtPixels(CompanionArt art, CompanionKind kind, double phase, double reaction)
+        private static void CheckLiveCompanionMotion()
+        {
+            if (!SystemParameters.ClientAreaAnimation || SystemParameters.HighContrast) return;
+            int baseline = CompanionScene.RenderingSceneCount;
+            Window host = new Window { Width = 344, Height = 344, WindowStyle = WindowStyle.None,
+                ShowInTaskbar = false, ShowActivated = false, Left = -10000, Top = -10000 };
+            Grid root = new Grid(); Canvas orb = new Canvas(); Canvas companion = new Canvas { Name = "CompanionCanvas" };
+            root.Children.Add(orb); root.Children.Add(companion); host.Content = root;
+            NameScope.SetNameScope(host, new NameScope()); host.RegisterName("OrbCanvas", orb);
+            try
+            {
+                host.Show(); Pump(80);
+                CompanionScene.Apply(companion, host, CompanionKind.Dog, HolidayTheme.Beach, false, true, OrbEffect.Glass, .6, false);
+                Check(WaitFor(delegate { return CompanionScene.RenderingSceneCount == baseline + 1; }), "A visible companion attaches its live animation loop");
+                double before = CompanionScene.Angle(companion); long frames = CompanionScene.FrameCount(companion);
+                byte[] beforePixels = CompanionPixels(companion);
+                Pump(850);
+                Check(CompanionScene.FrameCount(companion) > frames + 3 && Math.Abs(CompanionScene.Angle(companion) - before) > .01,
+                    "The native live companion takes steps and travels over time");
+                Check(!System.Linq.Enumerable.SequenceEqual(beforePixels, CompanionPixels(companion)),
+                    "The live companion visibly changes across rendered frames");
+                Check(CompanionScene.React(companion) && CompanionScene.Action(companion) == CompanionAction.Play,
+                    "The live companion responds to interaction");
+                host.Hide(); Pump(80);
+                Check(CompanionScene.RenderingSceneCount == baseline, "Hiding the companion detaches its rendering loop");
+            }
+            finally { CompanionScene.Stop(companion); host.Close(); }
+        }
+
+        private static byte[] ArtPixels(CompanionArt art, CompanionKind kind, double phase, double reaction, CompanionAction action = CompanionAction.Travel)
         {
             DrawingVisual visual = new DrawingVisual();
-            using (DrawingContext dc = visual.RenderOpen()) art.Draw(dc, kind, phase, reaction, 0);
+            using (DrawingContext dc = visual.RenderOpen()) art.Draw(dc, kind, phase, reaction, 0, action, phase * 28, 1.1);
             RenderTargetBitmap bitmap = new RenderTargetBitmap(64, 64, 96, 96, PixelFormats.Pbgra32);
             bitmap.Render(visual); return Pixels(bitmap);
         }
@@ -195,13 +238,47 @@ namespace HolidayTimer
                     int col = i % 3, row = i / 3;
                     dc.PushTransform(new TranslateTransform(col * 200 + 31, row * 140 + 1));
                     dc.PushTransform(new ScaleTransform(2.15, 2.15));
-                    art.Draw(dc, kinds[i], phases[i], 0, 0); dc.Pop(); dc.Pop();
+                    art.Draw(dc, kinds[i], phases[i], 0, 0, i == 2 || i == 5 ? CompanionAction.Play : CompanionAction.Travel,
+                        phases[i] * 28, 1.1); dc.Pop(); dc.Pop();
                     FormattedText label = new FormattedText(labels[i], CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
                         new Typeface("Segoe UI"), 12, Brushes.DimGray, 1.0);
                     dc.DrawText(label, new Point(col * 200 + 12, row * 140 + 118));
                 }
             }
             RenderTargetBitmap image = new RenderTargetBitmap(600, 560, 96, 96, PixelFormats.Pbgra32);
+            image.Render(visual); PngBitmapEncoder encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
+            using (FileStream file = File.Create(path)) encoder.Save(file);
+        }
+
+        private static void RenderWalkingStudies(CompanionArt art, string path)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            DrawingVisual visual = new DrawingVisual();
+            using (DrawingContext dc = visual.RenderOpen())
+            {
+                dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(244, 247, 249)), null, new Rect(0, 0, 864, 360));
+                for (int row = 0; row < 2; row++)
+                {
+                    CompanionKind kind = row == 0 ? CompanionKind.Dog : CompanionKind.Cat;
+                    for (int frame = 0; frame < 8; frame++)
+                    {
+                        dc.PushTransform(new TranslateTransform(frame * 108 + 10, row * 120 + 4));
+                        dc.PushTransform(new ScaleTransform(1.4, 1.4));
+                        art.Draw(dc, kind, 1, 0, 0, CompanionAction.Travel,
+                            frame * (CompanionMotion.Stride / CompanionMotion.StanceFraction * CompanionMotion.ArtScale) / 8, 0);
+                        dc.Pop(); dc.Pop();
+                    }
+                }
+                CompanionKind[] sleeping = { CompanionKind.Dog, CompanionKind.Cat, CompanionKind.Bunny, CompanionKind.Bird };
+                for (int i = 0; i < sleeping.Length; i++)
+                {
+                    dc.PushTransform(new TranslateTransform(i * 216 + 46, 244));
+                    dc.PushTransform(new ScaleTransform(1.4, 1.4));
+                    art.Draw(dc, sleeping[i], 1, 0, 0, CompanionAction.Sleep, 0, 1);
+                    dc.Pop(); dc.Pop();
+                }
+            }
+            RenderTargetBitmap image = new RenderTargetBitmap(864, 360, 96, 96, PixelFormats.Pbgra32);
             image.Render(visual); PngBitmapEncoder encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
             using (FileStream file = File.Create(path)) encoder.Save(file);
         }

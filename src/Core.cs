@@ -65,6 +65,7 @@ namespace HolidayTimer
         [DataMember] public string WorkFinish { get; set; }
         [DataMember] public CelebrationKind CelebrationEffect { get; set; }
         [DataMember] public CompanionKind Companion { get; set; }
+        [DataMember] public bool CompanionScenery { get; set; }
 
         public static bool IsValidTextColour(string value)
         {
@@ -126,6 +127,7 @@ namespace HolidayTimer
             WorkFinish = "17:00";
             CelebrationEffect = CelebrationKind.Fireworks;
             Companion = CompanionKind.None;
+            CompanionScenery = true;
         }
     }
 

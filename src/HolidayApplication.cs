@@ -405,7 +405,7 @@ namespace HolidayTimer
         {
             Themes.Apply(window, settings.Theme, settings.BackgroundOpacity, settings.LightAppearance, settings.CountdownTextColour); FontChoices.Apply(window, settings.DisplayFont);
             OrbScene.Apply(Layouts.Find<Canvas>(window, "OrbCanvas"), window, settings.Theme, settings.BackgroundOpacity, desktopIntegration, settings.LightAppearance, settings.Effect, settings.EffectIntensity);
-            CompanionScene.Apply(Layouts.Find<Canvas>(window, "CompanionCanvas"), window, settings.Companion, settings.Theme, settings.LightAppearance, desktopIntegration, settings.Effect, settings.EffectIntensity);
+            CompanionScene.Apply(Layouts.Find<Canvas>(window, "CompanionCanvas"), window, settings.Companion, settings.Theme, settings.LightAppearance, desktopIntegration, settings.Effect, settings.EffectIntensity, settings.CompanionScenery);
             Border dragArea = Layouts.Find<Border>(window, "DragArea");
             dragArea.ToolTip = settings.Companion == CompanionKind.None ? "Drag to move the countdown" : "Click to interact · Drag to move the countdown";
             System.Windows.Automation.AutomationProperties.SetName(dragArea, settings.Companion == CompanionKind.None ?
@@ -506,7 +506,7 @@ namespace HolidayTimer
             previewSettings = PreviewDraft(SettingsWindow);
             Themes.Apply(SettingsWindow, previewSettings.Theme, previewSettings.BackgroundOpacity, previewSettings.LightAppearance, previewSettings.CountdownTextColour);
             OrbScene.Apply(Layouts.Find<Canvas>(SettingsWindow, "SettingsOrbCanvas"), SettingsWindow, previewSettings.Theme, previewSettings.BackgroundOpacity, desktopIntegration, previewSettings.LightAppearance, previewSettings.Effect, previewSettings.EffectIntensity);
-            CompanionScene.Apply(Layouts.Find<Canvas>(SettingsWindow, "SettingsCompanionCanvas"), SettingsWindow, previewSettings.Companion, previewSettings.Theme, previewSettings.LightAppearance, desktopIntegration, previewSettings.Effect, previewSettings.EffectIntensity);
+            CompanionScene.Apply(Layouts.Find<Canvas>(SettingsWindow, "SettingsCompanionCanvas"), SettingsWindow, previewSettings.Companion, previewSettings.Theme, previewSettings.LightAppearance, desktopIntegration, previewSettings.Effect, previewSettings.EffectIntensity, previewSettings.CompanionScenery);
             SettingsLayout.Arrange(SettingsWindow);
             RenderSettingsPreview(SettingsWindow, previewSettings);
             SynchronizeMusic();

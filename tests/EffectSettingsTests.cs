@@ -44,6 +44,7 @@ internal static class EffectSettingsTests
         False(fresh.MusicResponse, "Choosing an effect does not opt new users into playback capture");
         Equal(CelebrationKind.Fireworks, fresh.CelebrationEffect, "Existing celebrations retain fireworks by default");
         Equal(CompanionKind.None, fresh.Companion, "The new companion is optional and defaults to none");
+        True(fresh.CompanionScenery, "Companion scenery is enabled by default when a companion is chosen");
 
         SettingsStore legacyStore = new SettingsStore(Path.Combine(scratch, "legacy"));
         Directory.CreateDirectory(Path.GetDirectoryName(legacyStore.FilePath));
@@ -54,6 +55,7 @@ internal static class EffectSettingsTests
         AppSettings legacy = legacyStore.Load();
         Equal(OrbEffect.Glass, legacy.Effect, "Older settings keep glass when the effect field is absent");
         Equal(CompanionKind.None, legacy.Companion, "Older preferences do not add a companion unexpectedly");
+        True(legacy.CompanionScenery, "Older preferences receive the scenery default");
         Equal(.65, legacy.EffectIntensity, "Older settings receive the motion default rather than zero");
         Equal("", legacy.CountdownTextColour, "Older settings keep automatic text colour");
         Equal("Existing holiday", legacy.HolidayName, "Migration preserves the configured holiday");
@@ -173,9 +175,11 @@ internal static class EffectSettingsTests
         foreach (CompanionKind kind in Enum.GetValues(typeof(CompanionKind)))
         {
             AppSettings settings = ValidSettings(); settings.Companion = kind; settings.Effect = OrbEffect.ShockwavePulses;
+            settings.CompanionScenery = ((int)kind % 2 == 0);
             store.Save(settings);
             AppSettings loaded = store.Load();
             Equal(kind, loaded.Companion, kind + " survives save and restart");
+            Equal(settings.CompanionScenery, loaded.CompanionScenery, kind + " remembers the scenery choice");
             Equal(OrbEffect.ShockwavePulses, loaded.Effect, kind + " does not replace the selected orb effect");
         }
         string saved = File.ReadAllText(store.FilePath), backup = File.ReadAllText(store.FilePath + ".bak");

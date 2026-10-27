@@ -12,20 +12,21 @@ namespace HolidayTimer
         };
         private static readonly string[] CompanionDescriptions = {
             "Let the orb shine on its own.",
-            "A dog walks the orbit and occasionally barks. Click for a happy hop and bark.",
-            "A cat pads along the edge and occasionally grooms. Click for a playful pounce.",
-            "A bunny hops around the ring. Click for a bigger hop.",
-            "A bird flies around the ring. Click for a flap.",
-            "A car drives the loop. Click for a quick bounce.",
-            "A bicycle rolls around the ring. Click to spin its wheels.",
-            "A motorcycle cruises the orbit. Click for a quick lean.",
-            "An airplane circles the orb. Click for a quick bank."
+            "A dog walks, plays and naps. Click for a happy hop and silent bark.",
+            "A cat walks, grooms and naps. Click for a playful hop.",
+            "A bunny hops, plays and rests on the edge.",
+            "A bird flies, flaps and occasionally perches.",
+            "A car drives, stops and idles. Click for a playful bounce.",
+            "A bicycle rolls and pauses on the ring.",
+            "A motorcycle cruises and stops. Click for a quick lean.",
+            "An airplane travels and banks around the orb."
         };
 
         private static void FillCompanionForm(Window form, AppSettings settings)
         {
             ComboBox choice = Layouts.Find<ComboBox>(form, "CompanionChoice");
             choice.ItemsSource = CompanionNames; choice.SelectedIndex = (int)settings.Companion;
+            Layouts.Find<CheckBox>(form, "CompanionScenery").IsChecked = settings.CompanionScenery;
             UpdateCompanionControls(form);
         }
 
@@ -33,7 +34,9 @@ namespace HolidayTimer
         {
             int index = Layouts.Find<ComboBox>(form, "CompanionChoice").SelectedIndex;
             if (index < 0 || index >= CompanionNames.Length) { error = "Choose a companion from the list."; return false; }
-            draft.Companion = (CompanionKind)index; error = null; return true;
+            draft.Companion = (CompanionKind)index;
+            draft.CompanionScenery = Layouts.Find<CheckBox>(form, "CompanionScenery").IsChecked == true;
+            error = null; return true;
         }
 
         private static void UpdateCompanionControls(Window form)
@@ -44,11 +47,14 @@ namespace HolidayTimer
             Layouts.Find<TextBlock>(form, "CompanionDescription").Text = CompanionDescriptions[index] +
                 (index != 0 && !motion ? " Windows motion settings keep it still." : "");
             Layouts.Find<Button>(form, "TryCompanion").IsEnabled = index != 0 && motion;
+            Layouts.Find<CheckBox>(form, "CompanionScenery").IsEnabled = index != 0;
         }
 
         private void BindCompanionForm(Window form)
         {
             Layouts.Find<ComboBox>(form, "CompanionChoice").SelectionChanged += delegate { UpdateCompanionControls(form); QueuePreviewUpdate(); };
+            Layouts.Find<CheckBox>(form, "CompanionScenery").Checked += delegate { QueuePreviewUpdate(); };
+            Layouts.Find<CheckBox>(form, "CompanionScenery").Unchecked += delegate { QueuePreviewUpdate(); };
             Layouts.Find<Button>(form, "TryCompanion").Click += delegate
             {
                 CompanionScene.React(Layouts.Find<Canvas>(form, "SettingsCompanionCanvas"));

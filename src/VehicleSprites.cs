@@ -60,16 +60,15 @@ namespace HolidayTimer
             body.Freeze(); vehicle.BodyClip = body; return vehicle;
         }
 
-        internal static void Draw(DrawingContext dc, CompanionKind kind, double time, Brush colour)
+        internal static void Draw(DrawingContext dc, CompanionKind kind, double distance, Brush colour)
         {
             Vehicle vehicle = kind == CompanionKind.Car ? Car : kind == CompanionKind.Bicycle ? Bicycle :
                 kind == CompanionKind.Motorcycle ? Motorcycle : Airplane;
             dc.PushClip(vehicle.BodyClip); Paint(dc, vehicle, colour); dc.Pop();
-            double speed = kind == CompanionKind.Bicycle ? 5 : 7;
             for (int i = 0; i < vehicle.WheelClips.Length; i++)
             {
                 dc.PushClip(vehicle.WheelClips[i]);
-                dc.PushTransform(new RotateTransform(time * speed * 180 / Math.PI,
+                dc.PushTransform(new RotateTransform(distance / (vehicle.WheelClips[i].RadiusX * CompanionMotion.ArtScale) * 180 / Math.PI,
                     vehicle.WheelCentres[i].X, vehicle.WheelCentres[i].Y));
                 Paint(dc, vehicle, colour); dc.Pop(); dc.Pop();
             }
