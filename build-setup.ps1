@@ -1,9 +1,9 @@
 param(
     [switch]$Test,
     [switch]$SkipAppBuild,
-    [string]$PayloadDirectory = 'dist\mit-update',
-    [string]$OutputDirectory = 'dist\mit-setup',
-    [string]$MetadataDirectory = 'dist\mit-setup-verification',
+    [string]$PayloadDirectory = 'dist\companions-update',
+    [string]$OutputDirectory = 'dist\companions-setup',
+    [string]$MetadataDirectory = 'dist\companions-setup-verification',
     [string]$CompilerPath = 'tools\inno-6.7.3\ISCC.exe',
     [switch]$IsolationTest,
     [string]$TestRoot

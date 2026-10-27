@@ -153,6 +153,17 @@
                   <TextBlock Text="Opacity fades the panel and centre. Colours stay vivid." FontSize="11" Foreground="{DynamicResource MutedText}" TextWrapping="Wrap" Margin="0,4,0,0"/>
                 </StackPanel>
               </TabItem>
+              <TabItem x:Name="CompanionTab" Header="Co_mpanion" AutomationProperties.Name="Orb companion settings">
+                <StackPanel x:Name="CompanionSection">
+                  <TextBlock Text="A little company" FontWeight="SemiBold" FontSize="18" Foreground="{DynamicResource Heading}"/>
+                  <TextBlock Text="Choose one silhouette to travel around your orb." FontSize="12" Foreground="{DynamicResource MutedText}" TextWrapping="Wrap" Margin="0,6,0,18"/>
+                  <Label Content="_Companion" Target="{Binding ElementName=CompanionChoice}"/>
+                  <ComboBox x:Name="CompanionChoice" MaxDropDownHeight="320" AutomationProperties.Name="Choose an orb companion"/>
+                  <TextBlock x:Name="CompanionDescription" FontSize="12" Foreground="{DynamicResource MutedText}" TextWrapping="Wrap" Margin="0,10,0,0" MinHeight="34"/>
+                  <Button x:Name="TryCompanion" Content="Try a reaction" HorizontalAlignment="Left" Padding="12,8" Margin="0,12,0,0" AutomationProperties.Name="Try the selected companion's reaction"/>
+                  <TextBlock Text="Click the countdown to interact. Drag it to move as usual. Your companion may briefly approach the numbers and can respond to music." FontSize="11" Foreground="{DynamicResource MutedText}" TextWrapping="Wrap" Margin="0,14,0,0"/>
+                </StackPanel>
+              </TabItem>
               <TabItem x:Name="MusicTab" Header="_Music" AutomationProperties.Name="Music response settings">
                 <StackPanel x:Name="MusicSection">
                   <Grid Margin="0,0,0,8"><TextBlock Text="Move with your music" FontWeight="SemiBold" FontSize="18" Foreground="{DynamicResource Heading}"/><Grid Width="72" Height="3" HorizontalAlignment="Right" VerticalAlignment="Center" ClipToBounds="True"><Border Background="{DynamicResource Line}" CornerRadius="1.5"/><Rectangle x:Name="MusicLevel" Fill="{DynamicResource Accent}" RadiusX="1.5" RadiusY="1.5" RenderTransformOrigin="0,0.5"><Rectangle.RenderTransform><ScaleTransform ScaleX="0"/></Rectangle.RenderTransform></Rectangle></Grid></Grid>
@@ -212,6 +223,7 @@
                 <Ellipse Width="344" Height="344" Fill="{DynamicResource OrbSoftGlow}" IsHitTestVisible="False"/>
                 <Grid x:Name="SettingsOrbMaterial" Opacity="{DynamicResource OrbMaterialOpacity}" OpacityMask="{DynamicResource OrbMaterialMask}" IsHitTestVisible="False"><Border Background="{DynamicResource WidgetSurface}" Width="344" Height="344" HorizontalAlignment="Center" VerticalAlignment="Center" CornerRadius="172"/><Ellipse Width="268" Height="236" Fill="{DynamicResource CountdownScrim}" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid>
                 <Canvas x:Name="SettingsOrbCanvas" Width="344" Height="344" IsHitTestVisible="False"/>
+                <Canvas x:Name="SettingsCompanionCanvas" Width="344" Height="344" IsHitTestVisible="False"/>
                 <StackPanel Margin="58,0,58,0" VerticalAlignment="Center" Effect="{DynamicResource OrbTextShadowEffect}">
                   <TextBlock x:Name="SettingsPreviewName" Text="My holiday" FontSize="14" FontWeight="Medium" TextAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource OrbText}" Margin="0,0,0,7" Effect="{DynamicResource OrbPreviewTextShadowEffect}"/>
                   <TextBlock x:Name="SettingsPreviewNumber" Text="30" FontSize="64" FontWeight="SemiBold" FontFamily="{DynamicResource CountdownFont}" Typography.NumeralAlignment="Tabular" Height="84" LineHeight="84" LineStackingStrategy="BlockLineHeight" TextAlignment="Center" Foreground="{DynamicResource OrbText}" Effect="{DynamicResource OrbPreviewTextShadowEffect}"/>

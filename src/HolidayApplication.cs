@@ -78,11 +78,7 @@ namespace HolidayTimer
             Layouts.Find<Button>(Widget, "EditButton").Click += delegate { OpenSettings(); };
             Layouts.Find<Button>(Widget, "HideButton").Click += delegate { HideWidget(); };
             Layouts.Find<Button>(Widget, "UnitButton").Click += delegate { CycleUnit(); };
-            Layouts.Find<System.Windows.Controls.Border>(Widget, "DragArea").MouseLeftButtonDown += delegate(object sender, MouseButtonEventArgs e)
-            {
-                if (e.ChangedButton != MouseButton.Left) return;
-                Widget.DragMove(); ApplyGadgetAppearance(Widget, Settings); Placement.Clamp(Widget); RememberPosition(); SaveQuietly();
-            };
+            CompanionInteraction.Attach(Widget, delegate { ApplyGadgetAppearance(Widget, Settings); Placement.Clamp(Widget); RememberPosition(); SaveQuietly(); });
             Widget.Closing += delegate(object sender, System.ComponentModel.CancelEventArgs e)
             { if (!quitting) { e.Cancel = true; HideWidget(); } };
             Widget.SourceInitialized += delegate { Placement.Restore(Widget, Settings, false); };
@@ -186,6 +182,7 @@ namespace HolidayTimer
             Layouts.Find<Button>(form, "PreviewGadget").Click += delegate { ShowGadgetPreview(form); };
             BindMusicForm(form);
             BindAppearanceForm(form);
+            BindCompanionForm(form);
             BindWorkForm(form);
             BindCelebrationForm(form);
             BindUpdateForm(form);
@@ -236,6 +233,7 @@ namespace HolidayTimer
             fonts.Text = FontChoices.Available(settings.DisplayFont) ? settings.DisplayFont : "Inter Display";
             FillMusicForm(form, settings);
             FillAppearanceForm(form, settings);
+            FillCompanionForm(form, settings);
             FillWorkForm(form, settings);
             FillCelebrationForm(form, settings);
             SyncChoices(form);
@@ -288,6 +286,7 @@ namespace HolidayTimer
             if (!ReadWorkForm(form, draft, out error)) { draft = null; return false; }
             if (!ReadCelebrationForm(form, draft, out error)) { draft = null; return false; }
             if (!ReadAppearanceForm(form, draft, out error)) { draft = null; return false; }
+            if (!ReadCompanionForm(form, draft, out error)) { draft = null; return false; }
             if (!FontChoices.Available(draft.DisplayFont)) { error = "Choose a font from the list."; draft = null; return false; }
             return true;
         }
@@ -406,6 +405,11 @@ namespace HolidayTimer
         {
             Themes.Apply(window, settings.Theme, settings.BackgroundOpacity, settings.LightAppearance, settings.CountdownTextColour); FontChoices.Apply(window, settings.DisplayFont);
             OrbScene.Apply(Layouts.Find<Canvas>(window, "OrbCanvas"), window, settings.Theme, settings.BackgroundOpacity, desktopIntegration, settings.LightAppearance, settings.Effect, settings.EffectIntensity);
+            CompanionScene.Apply(Layouts.Find<Canvas>(window, "CompanionCanvas"), window, settings.Companion, settings.Theme, settings.LightAppearance, desktopIntegration, settings.Effect, settings.EffectIntensity);
+            Border dragArea = Layouts.Find<Border>(window, "DragArea");
+            dragArea.ToolTip = settings.Companion == CompanionKind.None ? "Drag to move the countdown" : "Click to interact · Drag to move the countdown";
+            System.Windows.Automation.AutomationProperties.SetName(dragArea, settings.Companion == CompanionKind.None ?
+                "Countdown: drag to move" : "Countdown: drag to move, click or press Space to interact");
             GadgetControls.Attach(window, desktopIntegration);
             double scale = Math.Min(settings.WidgetScale, Placement.MaximumWidgetScale(window));
             window.Width = 344 * scale; window.Height = 344 * scale; window.UpdateLayout();
@@ -467,6 +471,7 @@ namespace HolidayTimer
             fallback.CelebrationEffect = (CelebrationKind)Math.Max(0, Layouts.Find<ComboBox>(form, "CelebrationStyle").SelectedIndex);
             string appearanceError;
             ReadAppearanceForm(form, fallback, out appearanceError);
+            ReadCompanionForm(form, fallback, out appearanceError);
             fallback.CountdownTextColour = PreviewTextColour(form);
             return fallback;
         }
@@ -484,12 +489,10 @@ namespace HolidayTimer
                 ComboBox choice = Layouts.Find<ComboBox>(form, "CountdownUnit"); choice.SelectedIndex = (choice.SelectedIndex + 1) % 5; RefreshGadgetPreview();
             };
             Layouts.Find<Button>(window, "WorkdayButton").Click += delegate { CheckBox choice = Layouts.Find<CheckBox>(form, "WorkdayCountdown"); choice.IsChecked = choice.IsChecked != true; RefreshGadgetPreview(); };
-            Layouts.Find<System.Windows.Controls.Border>(window, "DragArea").MouseLeftButtonDown += delegate(object sender, MouseButtonEventArgs e)
-            {
-                if (e.ChangedButton != MouseButton.Left) return;
-                window.DragMove(); ApplyGadgetAppearance(window, previewSettings); Placement.Clamp(window);
+            CompanionInteraction.Attach(window, delegate {
+                ApplyGadgetAppearance(window, previewSettings); Placement.Clamp(window);
                 AppSettings position = new AppSettings(); Placement.Remember(window, position); previewLeft = position.WidgetLeft; previewTop = position.WidgetTop;
-            };
+            });
             window.PreviewKeyDown += delegate(object sender, KeyEventArgs e) { if (e.Key == Key.Escape) { e.Handled = true; window.Close(); } };
             window.DpiChanged += delegate { Dispatcher.BeginInvoke(new Action(delegate { if (GadgetPreview == window) RefreshGadgetPreview(); })); };
             window.Closed += delegate { GadgetPreview = null; SynchronizeMusic(); };
@@ -503,6 +506,7 @@ namespace HolidayTimer
             previewSettings = PreviewDraft(SettingsWindow);
             Themes.Apply(SettingsWindow, previewSettings.Theme, previewSettings.BackgroundOpacity, previewSettings.LightAppearance, previewSettings.CountdownTextColour);
             OrbScene.Apply(Layouts.Find<Canvas>(SettingsWindow, "SettingsOrbCanvas"), SettingsWindow, previewSettings.Theme, previewSettings.BackgroundOpacity, desktopIntegration, previewSettings.LightAppearance, previewSettings.Effect, previewSettings.EffectIntensity);
+            CompanionScene.Apply(Layouts.Find<Canvas>(SettingsWindow, "SettingsCompanionCanvas"), SettingsWindow, previewSettings.Companion, previewSettings.Theme, previewSettings.LightAppearance, desktopIntegration, previewSettings.Effect, previewSettings.EffectIntensity);
             SettingsLayout.Arrange(SettingsWindow);
             RenderSettingsPreview(SettingsWindow, previewSettings);
             SynchronizeMusic();

@@ -30,6 +30,7 @@ namespace HolidayTimer
     }
 
     public enum CelebrationKind { Fireworks = 0, Flowers = 1 }
+    public enum CompanionKind { None = 0, Dog, Cat, Bunny, Bird, Car, Bicycle, Motorcycle, Airplane }
 
     [DataContract]
     public sealed class AppSettings
@@ -63,6 +64,7 @@ namespace HolidayTimer
         [DataMember] public string WorkStart { get; set; }
         [DataMember] public string WorkFinish { get; set; }
         [DataMember] public CelebrationKind CelebrationEffect { get; set; }
+        [DataMember] public CompanionKind Companion { get; set; }
 
         public static bool IsValidTextColour(string value)
         {
@@ -123,6 +125,7 @@ namespace HolidayTimer
             WorkStart = "09:00";
             WorkFinish = "17:00";
             CelebrationEffect = CelebrationKind.Fireworks;
+            Companion = CompanionKind.None;
         }
     }
 
@@ -351,6 +354,8 @@ namespace HolidayTimer
             CountdownCalculator.ToLocalTarget(settings.TargetLocal);
             if (!Enum.IsDefined(typeof(CelebrationKind), settings.CelebrationEffect))
                 throw new ArgumentException("Choose fireworks or flowers for your celebration.");
+            if (!Enum.IsDefined(typeof(CompanionKind), settings.Companion))
+                throw new ArgumentException("Choose a companion from the list.");
             if (!Enum.IsDefined(typeof(CountdownUnit), settings.Unit))
             {
                 throw new ArgumentException("Choose days, weeks, hours, minutes, or seconds.");

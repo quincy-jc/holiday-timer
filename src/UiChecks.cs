@@ -53,6 +53,7 @@ namespace HolidayTimer
                     && System.Linq.Enumerable.Contains(inter.FamilyNames.Values, "Inter Display"), "Bundled Inter Display resolves to its real glyphs");
                 Check(Layouts.Find<ComboBox>(form, "DisplayFont").Text == "Inter Display", "Inter Display is the initial font choice");
                 CheckCompactSettingsLayout(form, root, render);
+                CheckCompanionControls(app, form, store, root, render);
                 CheckUpdateControls(app, form);
                 CheckPublicHolidayControls(app, form, store, root, render);
                 SettingsLayout.SelectSection(form, "MusicTab");

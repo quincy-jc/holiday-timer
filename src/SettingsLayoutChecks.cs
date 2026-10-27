@@ -23,11 +23,11 @@ namespace HolidayTimer
             int wasEffect = effect.SelectedIndex;
             string wasHex = hex.Text;
             object wasTag = form.Tag;
-            Check(tabs.Items.Count == 5, "Settings groups all options into five native keyboard-accessible tabs");
+            Check(tabs.Items.Count == 6, "Settings groups all options into six native keyboard-accessible tabs");
             form.Width = 980; form.Height = 740; form.UpdateLayout(); Pump(80);
             try
             {
-                string[] sections = { "CountdownTab", "AppearanceTab", "MusicTab", "CelebrationTab", "UpdatesTab" };
+                string[] sections = { "CountdownTab", "AppearanceTab", "CompanionTab", "MusicTab", "CelebrationTab", "UpdatesTab" };
                 Point previewPosition = preview.TransformToAncestor((Visual)form.Content).Transform(new Point());
                 foreach (string section in sections)
                 {

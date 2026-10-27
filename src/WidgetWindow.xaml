@@ -7,9 +7,10 @@
         <Ellipse Width="268" Height="236" Fill="{DynamicResource CountdownScrim}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
       </Grid>
       <Canvas x:Name="OrbCanvas" Width="344" Height="344" IsHitTestVisible="False"/>
+      <Canvas x:Name="CompanionCanvas" Width="344" Height="344" IsHitTestVisible="False"/>
       <Ellipse Width="266" Height="266" Fill="Transparent" HorizontalAlignment="Center" VerticalAlignment="Center"/>
       <Border x:Name="ActionHoverBridge" Width="300" Height="30" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,29" Background="Transparent" IsHitTestVisible="False"/>
-      <Border x:Name="DragArea" Background="Transparent" Margin="39,39,39,51" CornerRadius="133" Cursor="SizeAll" ToolTip="Drag to move the countdown">
+      <Border x:Name="DragArea" Background="Transparent" Margin="39,39,39,51" CornerRadius="133" Cursor="SizeAll" ToolTip="Drag to move the countdown" Focusable="True" AutomationProperties.Name="Countdown: drag to move, click or press Space to interact">
         <StackPanel Margin="20,0,20,0" VerticalAlignment="Center" Effect="{DynamicResource OrbTextShadowEffect}">
           <TextBlock x:Name="HolidayLabel" Text="My holiday" FontSize="14" FontWeight="Medium" TextAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource OrbText}" Margin="0,0,0,9"/>
           <TextBlock x:Name="RemainingNumber" Text="30" FontFamily="{DynamicResource CountdownFont}" FontWeight="SemiBold" FontSize="64" Foreground="{DynamicResource OrbText}" TextAlignment="Center" Typography.NumeralAlignment="Tabular" Height="84" VerticalAlignment="Center" LineHeight="84" LineStackingStrategy="BlockLineHeight"/>

@@ -1,12 +1,12 @@
 # Holiday Timer setup
 
-`dist/mit-setup/HolidayTimerSetup.exe` is the one file to share for version 1.7.2. It includes app, configuration, documentation, MIT licence and font licence. Double-click and choose Install; prior installers retain their directories.
+`dist/companions-setup/HolidayTimerSetup.exe` is the one file to share for version 1.8.0. It includes app, configuration, documentation, MIT licence and font licence. Double-click and choose Install; prior installers retain their directories.
 
 Current features include automatic arrival celebrations and optional morning greetings on every connected monitor, with Fireworks or Flowers plus confetti and shared Escape dismissal. The matching WPF calendar and colour picker, Original glass plus twelve additional effects, five countdown units, configurable working hours, direct Workdays switch, optional music response and plain custom lettering remain. Default colours/shadows are unchanged. The soft glass backing and coloured artwork stay independent of centre opacity.
 
 The installed app lives in `%LOCALAPPDATA%\Programs\HolidayTimer`, with a Start menu shortcut. Installation is for the current Windows user and requires no administrator password, restart, or internet connection on Windows 11. Remove it through **Settings → Apps → Installed apps → Holiday Timer → Uninstall**.
 
-Install 1.7.2 over an older version without uninstalling first. Stable product identity/location updates one Apps entry and preserves preferences. Missing working-time fields default to elapsed mode and 09:00–17:00; missing celebration style defaults to Fireworks. Older preferences have no recorded arrival target.
+Install 1.8.0 over an older version without uninstalling first. Stable product identity/location updates one Apps entry and preserves preferences. Missing working-time fields default to elapsed mode and 09:00–17:00; missing celebration style defaults to Fireworks. Older preferences have no recorded arrival target.
 
 Before updating or removing the app, save any edits and choose **Exit Holiday Timer** from the tray. Setup does not force a running copy closed. Uninstall removes the installed app and its own sign-in registration, while preserving the saved countdown at `%LOCALAPPDATA%\HolidayTimer`. An existing saved **Launch when I sign in** choice is respected. Saved preferences can be removed separately after uninstall if they are no longer wanted.
 
@@ -26,15 +26,17 @@ Version 1.7.1 adds working GitHub release checks and an opt-in updater. Its inst
 
 Version 1.7.2 adds the MIT licence for Holiday Timer's source code and includes its licence notice in the installer. Inter Display retains its separate font licence.
 
+Version 1.8.0 adds one optional animal or vehicle companion, with live previews, brief countdown visits and click reactions. The selected companion persists with the countdown and respects Windows reduced-motion settings.
+
 Run from the project root:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\build-setup.ps1 -Test
 ```
 
-The command builds the app into `dist/mit-update`, runs its checks, compiles `installer/HolidayTimer.iss`, writes `dist/mit-setup/HolidayTimerSetup.exe`, and tests setup and removal with isolated install paths and registry/startup names. It does not install over the user's running app or replace the prior setup. `dist/mit-setup` contains only the file to share; build metadata lives in `dist/mit-setup-verification/package-info.json`. Results and package identity are recorded in `VERIFICATION.md`.
+The command builds the app into `dist/companions-update`, runs its checks, compiles `installer/HolidayTimer.iss`, writes `dist/companions-setup/HolidayTimerSetup.exe`, and tests setup and removal with isolated install paths and registry/startup names. It does not install over the user's running app or replace the prior setup. `dist/companions-setup` contains only the file to share; build metadata lives in `dist/companions-setup-verification/package-info.json`. Results and package identity are recorded in `VERIFICATION.md`.
 
-The installer checks can also run separately with `powershell -NoProfile -ExecutionPolicy Bypass -File .\installer\test-setup.ps1 -CompilerPath .\tools\inno-6.7.3\ISCC.exe -PayloadDirectory dist\mit-update`.
+The installer checks can also run separately with `powershell -NoProfile -ExecutionPolicy Bypass -File .\installer\test-setup.ps1 -CompilerPath .\tools\inno-6.7.3\ISCC.exe -PayloadDirectory dist\companions-update`.
 
 ## Build-time compiler
 

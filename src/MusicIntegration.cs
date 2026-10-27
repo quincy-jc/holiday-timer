@@ -103,6 +103,8 @@ namespace HolidayTimer
             bool enabled = MusicCaptureRequested && settings.MusicResponse && VisibleForMusic(window) &&
                 String.Equals(settings.AudioDeviceId ?? "", musicDevice ?? "", StringComparison.Ordinal);
             OrbScene.SetMusic(Layouts.Find<Canvas>(window, canvasName), signal, settings.MusicIntensity, enabled);
+            string companionName = canvasName == "SettingsOrbCanvas" ? "SettingsCompanionCanvas" : "CompanionCanvas";
+            CompanionScene.SetMusic(Layouts.Find<Canvas>(window, companionName), signal, settings.MusicIntensity, enabled);
         }
 
         private static void FillMusicForm(Window form, AppSettings settings)

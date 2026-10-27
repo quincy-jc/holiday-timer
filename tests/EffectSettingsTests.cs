@@ -15,6 +15,7 @@ internal static class EffectSettingsTests
             TextColourCases();
             RoundTripAndValidation(scratch);
             CelebrationChoices(scratch);
+            CompanionChoices(scratch);
             Console.WriteLine("PASS: " + checks + " effect settings acceptance checks.");
             return 0;
         }
@@ -42,6 +43,7 @@ internal static class EffectSettingsTests
         Equal(CountdownUnit.Days, fresh.Unit, "Adding weeks does not change the initial countdown unit");
         False(fresh.MusicResponse, "Choosing an effect does not opt new users into playback capture");
         Equal(CelebrationKind.Fireworks, fresh.CelebrationEffect, "Existing celebrations retain fireworks by default");
+        Equal(CompanionKind.None, fresh.Companion, "The new companion is optional and defaults to none");
 
         SettingsStore legacyStore = new SettingsStore(Path.Combine(scratch, "legacy"));
         Directory.CreateDirectory(Path.GetDirectoryName(legacyStore.FilePath));
@@ -51,6 +53,7 @@ internal static class EffectSettingsTests
         File.WriteAllText(legacyStore.FilePath, legacyJson);
         AppSettings legacy = legacyStore.Load();
         Equal(OrbEffect.Glass, legacy.Effect, "Older settings keep glass when the effect field is absent");
+        Equal(CompanionKind.None, legacy.Companion, "Older preferences do not add a companion unexpectedly");
         Equal(.65, legacy.EffectIntensity, "Older settings receive the motion default rather than zero");
         Equal("", legacy.CountdownTextColour, "Older settings keep automatic text colour");
         Equal("Existing holiday", legacy.HolidayName, "Migration preserves the configured holiday");
@@ -163,6 +166,22 @@ internal static class EffectSettingsTests
 
     private static string[] InvalidColours()
     { return new string[] { "red", "123456", "#FFF", "#12345678", "#12345G", " #123456", "#123456 ", "#12345", "#", "   ", "＃123456" }; }
+
+    private static void CompanionChoices(string scratch)
+    {
+        SettingsStore store = new SettingsStore(Path.Combine(scratch, "companions"));
+        foreach (CompanionKind kind in Enum.GetValues(typeof(CompanionKind)))
+        {
+            AppSettings settings = ValidSettings(); settings.Companion = kind; settings.Effect = OrbEffect.ShockwavePulses;
+            store.Save(settings);
+            AppSettings loaded = store.Load();
+            Equal(kind, loaded.Companion, kind + " survives save and restart");
+            Equal(OrbEffect.ShockwavePulses, loaded.Effect, kind + " does not replace the selected orb effect");
+        }
+        string saved = File.ReadAllText(store.FilePath), backup = File.ReadAllText(store.FilePath + ".bak");
+        AppSettings invalid = ValidSettings(); invalid.Companion = (CompanionKind)99;
+        RejectWithoutOverwrite(store, invalid, saved, backup, "Unknown companion");
+    }
 
     private static void RejectWithoutOverwrite(SettingsStore store, AppSettings settings, string saved, string backup, string message)
     {
