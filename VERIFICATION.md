@@ -2,7 +2,9 @@
 
 The Windows build runs focused checks for countdowns, settings, work schedules, NSW holidays, music analysis and GitHub update validation, followed by WPF integration checks. The installer test uses an isolated directory, registry entry, startup name and application mutex.
 
-Version 1.7.0 passed 243 core, 198 effect/settings, 250 working-calendar, 241 public-holiday, 99 audio-analysis and 33 update-validation checks. Its WPF integration suite passed 1,675 checks, with an additional rendered-layout run. An isolated upgrade from 1.6.0 passed 103 installer checks, including update handoff and preservation of settings and calendar edits.
+Version 1.7.1 passed 243 core, 198 effect/settings, 250 working-calendar, 241 public-holiday, 99 audio-analysis and 34 update-validation checks. Its WPF integration suite passed 1,675 checks. Isolated upgrades from 1.6.0 and 1.7.0 each passed 103 installer checks, including update handoff and preservation of settings and calendar edits. A live GitHub check and download against the archived 1.7.0 asset exercised the corrected request, redirect, digest and version validation without installing it.
+
+The initial 1.7.0 release used an unsupported HTTP header assignment and could not check GitHub. Version 1.7.1 fixes the request and adds a regression check; 1.7.0 is marked as superseded.
 
 Run `build.ps1 -Test` for application checks. Run `build-setup.ps1 -Test` after installing the documented Inno Setup compiler for the installer checks. If a previous-version payload is present at `dist/public-holiday-update`, the installer test includes that payload in its upgrade check; otherwise it exercises install, update handoff, and uninstall using the current payload.
 

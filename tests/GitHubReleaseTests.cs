@@ -22,6 +22,9 @@ internal static class GitHubReleaseTests
     {
         try
         {
+            System.Net.HttpWebRequest metadataRequest = GitHubReleaseClient.CreateMetadataRequest(new Uri("https://api.github.com/repos/quincy-jc/holiday-timer/releases/latest"));
+            Check(metadataRequest.Accept == "application/vnd.github+json" && metadataRequest.Headers["X-GitHub-Api-Version"] == "2022-11-28",
+                "The GitHub request sets restricted Accept using its supported property without making a network call");
             byte[] sample = Encoding.UTF8.GetBytes("A small, synthetic update file");
             string digest = Hash(sample), url = "https://github.com/quincy-jc/holiday-timer/releases/download/v1.7.0/HolidayTimerSetup.exe";
             string json = Json("v1.7.0", digest, sample.Length, url);

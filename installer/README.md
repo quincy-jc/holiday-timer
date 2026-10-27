@@ -1,12 +1,12 @@
 # Holiday Timer setup
 
-`dist/github-setup/HolidayTimerSetup.exe` is the one file to share for version 1.7.0. It includes app, configuration, documentation and font licence. Double-click and choose Install; prior installers retain their directories.
+`dist/github-setup/HolidayTimerSetup.exe` is the one file to share for version 1.7.1. It includes app, configuration, documentation and font licence. Double-click and choose Install; prior installers retain their directories.
 
 Current features include automatic arrival celebrations and optional morning greetings on every connected monitor, with Fireworks or Flowers plus confetti and shared Escape dismissal. The matching WPF calendar and colour picker, Original glass plus twelve additional effects, five countdown units, configurable working hours, direct Workdays switch, optional music response and plain custom lettering remain. Default colours/shadows are unchanged. The soft glass backing and coloured artwork stay independent of centre opacity.
 
 The installed app lives in `%LOCALAPPDATA%\Programs\HolidayTimer`, with a Start menu shortcut. Installation is for the current Windows user and requires no administrator password, restart, or internet connection on Windows 11. Remove it through **Settings → Apps → Installed apps → Holiday Timer → Uninstall**.
 
-Install 1.7.0 over an older version without uninstalling first. Stable product identity/location updates one Apps entry and preserves preferences. Missing working-time fields default to elapsed mode and 09:00–17:00; missing celebration style defaults to Fireworks. Older preferences have no recorded arrival target.
+Install 1.7.1 over an older version without uninstalling first. Stable product identity/location updates one Apps entry and preserves preferences. Missing working-time fields default to elapsed mode and 09:00–17:00; missing celebration style defaults to Fireworks. Older preferences have no recorded arrival target.
 
 Before updating or removing the app, save any edits and choose **Exit Holiday Timer** from the tray. Setup does not force a running copy closed. Uninstall removes the installed app and its own sign-in registration, while preserving the saved countdown at `%LOCALAPPDATA%\HolidayTimer`. An existing saved **Launch when I sign in** choice is respected. Saved preferences can be removed separately after uninstall if they are no longer wanted.
 
@@ -22,7 +22,7 @@ Version 1.5.1 adds automatic recovery for failed audio workers and unavailable s
 
 Version 1.6.0 loads the next NSW statewide public holiday when no countdown exists or its chosen time has passed. The countdown time is local midnight; an on-screen arrival celebration remains until dismissed before the next holiday loads. The calendar includes published dates through 2027 and clearly marked rule-based estimates through 2031. The **NSW holidays…** picker can refresh the official NSW Government table on demand; the last valid calendar remains available offline. You can edit a holiday's name/date, save the correction for both countdowns and workdays, or reset it to the source. Future custom countdowns remain selected.
 
-Version 1.7.0 adds GitHub release checks and an opt-in updater. Its installer waits for the app to exit, updates the current-user installation, and reopens it. The update keeps saved countdowns, calendar edits and startup choices. Direct installation of 1.7.0 still requires the older app to be exited first.
+Version 1.7.1 adds working GitHub release checks and an opt-in updater. Its installer waits for the app to exit, updates the current-user installation, and reopens it. The update keeps saved countdowns, calendar edits and startup choices. Direct installation of 1.7.1 still requires the older app to be exited first; the initial 1.7.0 release had an issue preventing update checks.
 
 Run from the project root:
 

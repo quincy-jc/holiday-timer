@@ -4,7 +4,7 @@ A native Windows countdown with a live glass panel, animated orb and tray icon. 
 
 ## Install from one file
 
-Share `dist/github-setup/HolidayTimerSetup.exe` for version 1.7.0. Double-click and choose Install. It updates the existing app without duplicate Apps entries and preserves preferences. A new or expired countdown automatically loads the next NSW public holiday, and a settings picker can refresh dates from the NSW Government. Previous artifacts retain their directories.
+Share `dist/github-setup/HolidayTimerSetup.exe` for version 1.7.1. Double-click and choose Install. It updates the existing app without duplicate Apps entries and preserves preferences. A new or expired countdown automatically loads the next NSW public holiday, and a settings picker can refresh dates from the NSW Government. Previous artifacts retain their directories.
 
 The setup installs for the current Windows user at `%LOCALAPPDATA%\Programs\HolidayTimer`. On Windows 11 it needs no administrator password, restart, or internet connection. It adds a Start menu shortcut and **Holiday Timer** to **Settings → Apps → Installed apps**, where you can choose **Uninstall**.
 
@@ -53,11 +53,11 @@ Settings groups Countdown, Appearance, Music, Celebration and Updates into compa
 
 ## Updates
 
-Version 1.7.0 checks the public `quincy-jc/holiday-timer` GitHub Releases page at startup and approximately every six hours. **Settings → Updates** or **Check for updates** in the tray lets you check immediately. A tray notification appears when a newer stable version is available. Offline or failed checks leave the existing countdown working.
+Version 1.7.1 checks the public `quincy-jc/holiday-timer` GitHub Releases page at startup and approximately every six hours. **Settings → Updates** or **Check for updates** in the tray lets you check immediately. A tray notification appears when a newer stable version is available. Offline or failed checks leave the existing countdown working.
 
 Choose **Download and install**, save any settings edits, and confirm. The app verifies the download against the release's SHA-256 digest and version, closes, and the per-user installer updates the existing installation and reopens it. Updates are never installed without your action. If settings is closed while a download finishes, the app waits until you return and select **Install update**. An unsigned installer may still show a Windows security prompt; the digest checks download integrity and does not replace code signing.
 
-An existing 1.6 or older installation needs one manual install of 1.7.0 to gain update checks. Exit the old app from its tray menu before running that installer. Portable copies open the release page instead of silently installing to a different location.
+An existing 1.7.0 or older installation needs one manual install of 1.7.1 to gain working update checks; the 1.7.0 updater could not contact GitHub. Exit the old app from its tray menu before running that installer. Portable copies open the release page instead of silently installing to a different location.
 
 For a later release, update the assembly and installer version numbers in `src/AssemblyInfo.cs` and `installer/HolidayTimer.iss`, build and test the setup, and publish it as `HolidayTimerSetup.exe` on a non-prerelease GitHub release with a matching stable three-part tag such as `v1.8.0`. GitHub must expose the asset's SHA-256 digest before the app offers the release.
 

@@ -61,9 +61,7 @@ namespace HolidayTimer
 
         internal AvailableUpdate Check()
         {
-            HttpWebRequest request = NewRequest(ApiUrl);
-            request.Headers["Accept"] = "application/vnd.github+json";
-            request.Headers["X-GitHub-Api-Version"] = "2022-11-28";
+            HttpWebRequest request = CreateMetadataRequest(ApiUrl);
             using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
             {
                 if (response.StatusCode != HttpStatusCode.OK || response.ContentLength > MaximumMetadataBytes)
@@ -71,6 +69,14 @@ namespace HolidayTimer
                 using (Stream stream = response.GetResponseStream())
                     return ParseLatest(ReadBounded(stream, MaximumMetadataBytes), owner, repository);
             }
+        }
+
+        internal static HttpWebRequest CreateMetadataRequest(Uri address)
+        {
+            HttpWebRequest request = NewRequest(address);
+            request.Accept = "application/vnd.github+json";
+            request.Headers["X-GitHub-Api-Version"] = "2022-11-28";
+            return request;
         }
 
         internal static AvailableUpdate ParseLatest(byte[] bytes, string owner, string repository)
