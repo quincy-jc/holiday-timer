@@ -8,10 +8,10 @@ namespace HolidayTimer
     // foot travels backwards under the body at exactly the speed of travel.
     internal sealed class CompanionMotion
     {
-        internal const double Radius = 125, Stride = 7, StanceFraction = .6, ArtScale = .95;
+        internal const double Radius = 125, Stride = 12, StanceFraction = .65, ArtScale = .95;
         private static readonly CompanionAction[] Sequence = { CompanionAction.Travel, CompanionAction.Rest,
             CompanionAction.Travel, CompanionAction.Play, CompanionAction.Travel, CompanionAction.Sleep };
-        private static readonly double[] Durations = { 4.6, 1.4, 4.2, 2.4, 5.0, 5.0 };
+        private static readonly double[] Durations = { 4.5, 4.0, 4.0, 3.0, 4.5, 9.0 };
         private int index;
         private double age;
         private bool interaction;
@@ -39,7 +39,9 @@ namespace HolidayTimer
                 {
                     double midpoint = age + dt * .5;
                     double ease = Smooth(midpoint / .4) * Smooth((duration - midpoint) / .55);
-                    double speed = effectPace * (22 + 12 * Unit(intensity)) * (1 + Math.Min(1.2, Math.Max(0, audio)));
+                    double baseSpeed = kind == CompanionKind.Dog || kind == CompanionKind.Cat
+                        ? 15 + 3 * Unit(intensity) : 17 + 5 * Unit(intensity);
+                    double speed = effectPace * baseSpeed * (1 + .35 * Math.Min(1.2, Math.Max(0, audio)));
                     Move(speed * ease * dt);
                 }
                 age += dt; left -= dt;
@@ -72,17 +74,7 @@ namespace HolidayTimer
         }
 
         internal static double StepPhase(double distance) { return Math.Max(0, distance) / (Stride / StanceFraction * ArtScale); }
-        internal static double FootX(double phase)
-        {
-            phase = phase - Math.Floor(phase);
-            return phase < StanceFraction ? Stride * (.5 - phase / StanceFraction) :
-                Stride * (-.5 + Smooth((phase - StanceFraction) / (1 - StanceFraction)));
-        }
-        internal static double FootLift(double phase)
-        {
-            phase = phase - Math.Floor(phase);
-            return phase < StanceFraction ? 0 : 2.3 * Math.Sin(Math.PI * (phase - StanceFraction) / (1 - StanceFraction));
-        }
+        internal static double SpritePhase(double distance) { return Math.Max(0, distance) / (10 / .6 * ArtScale); }
         internal static double Smooth(double value)
         { value = Unit(value); return value * value * (3 - 2 * value); }
         private static double Unit(double value)

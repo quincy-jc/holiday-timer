@@ -16,6 +16,8 @@ Version 1.9.0 passed 243 core, 232 settings, 250 work-calendar, 241 public-holid
 
 Version 1.9.1 passed the same core, asset and motion checks, 1,815 WPF render-preview checks, and 110 isolated installer checks including an upgrade from 1.9.0. Walking poses were inspected across the stride.
 
-Run `build.ps1 -Test` for application checks. Run `build-setup.ps1 -Test` after installing the documented Inno Setup compiler for the installer checks. If a previous-version payload is present at `dist/companion-refinement`, the installer test includes that payload in its upgrade check; otherwise it exercises install, update handoff, and uninstall using the current payload.
+Version 1.9.2 passed 243 core, 232 settings, 250 work-calendar, 241 public-holiday, 99 audio-analysis, 34 update-validation, 145 companion asset, 5,283 companion-motion and 1,832 WPF integration checks. The motion tests cover fixed joint lengths, paws planted on the curved rim, rest and sleep, and gentle audio response. Rendered checks verify that limbs remain connected to the torso across the stride. An isolated upgrade from 1.9.1 passed 110 installer checks, including update handoff, saved settings and uninstall/reinstall.
+
+Run `build.ps1 -Test` for application checks. Run `build-setup.ps1 -Test` after installing the documented Inno Setup compiler for the installer checks. If a previous-version payload is present at `dist/gait-refinement`, the installer test includes that payload in its upgrade check; otherwise it exercises install, update handoff, and uninstall using the current payload.
 
 The setup is unsigned. The GitHub release digest verifies download integrity, but does not replace code signing or protect against compromise of the publishing account. Reduced motion, High Contrast, hardware audio devices, multiple monitors and live Windows glass should also be checked in the target environment.

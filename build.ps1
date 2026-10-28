@@ -70,7 +70,7 @@ if ($Test) {
     & $companionTestExe (Join-Path $output 'HolidayTimer.exe')
     if ($LASTEXITCODE -ne 0) { throw 'Companion asset checks failed.' }
     $motionTestExe = Join-Path $output 'CompanionMotionTests.exe'
-    & $compiler /nologo /target:exe /optimize+ ('/out:' + $motionTestExe) ('/reference:' + (Join-Path $framework 'System.Runtime.Serialization.dll')) (Join-Path $taskRoot 'src\Core.cs') (Join-Path $taskRoot 'src\WorkCalendar.cs') (Join-Path $taskRoot 'src\PublicHolidayCalendar.cs') (Join-Path $taskRoot 'src\CompanionMotion.cs') (Join-Path $taskRoot 'tests\CompanionMotionTests.cs')
+    & $compiler /nologo /target:exe /optimize+ ('/out:' + $motionTestExe) ('/reference:' + (Join-Path $framework 'System.Runtime.Serialization.dll')) (Join-Path $taskRoot 'src\Core.cs') (Join-Path $taskRoot 'src\WorkCalendar.cs') (Join-Path $taskRoot 'src\PublicHolidayCalendar.cs') (Join-Path $taskRoot 'src\CompanionMotion.cs') (Join-Path $taskRoot 'src\QuadrupedGait.cs') (Join-Path $taskRoot 'tests\CompanionMotionTests.cs')
     if ($LASTEXITCODE -ne 0) { throw 'Companion motion test build failed.' }
     & $motionTestExe
     if ($LASTEXITCODE -ne 0) { throw 'Companion motion checks failed.' }

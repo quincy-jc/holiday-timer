@@ -27,9 +27,10 @@ namespace HolidayTimer
                 double ringTime = NativeOrbEffects.Contains(scene.EffectCanvas) ? NativeOrbEffects.SceneTime(scene.EffectCanvas) : scene.Time;
                 double ringWave = Math.Sin(ringTime * (scene.Effect == OrbEffect.Glass ? 1.57 : 2.4)) * scene.Intensity *
                     (scene.Effect == OrbEffect.ShockwavePulses || scene.Effect == OrbEffect.WaterRipples ? 4.0 : 2.5);
-                double bounce = scene.Motion.Action != CompanionAction.Travel ? 0 : scene.Kind == CompanionKind.Bunny
-                    ? Math.Pow(Math.Max(0, Math.Sin(CompanionMotion.StepPhase(scene.Motion.Distance) * Math.PI * 2)), 2) * 4.5
-                    : Math.Sin(CompanionMotion.StepPhase(scene.Motion.Distance) * Math.PI * 4) * .7;
+                bool walkingAnimal = scene.Kind == CompanionKind.Dog || scene.Kind == CompanionKind.Cat;
+                double bounce = scene.Motion.Action != CompanionAction.Travel || walkingAnimal ? 0 : scene.Kind == CompanionKind.Bunny
+                    ? Math.Pow(Math.Max(0, Math.Sin(CompanionMotion.SpritePhase(scene.Motion.Distance) * Math.PI * 2)), 2) * 4.5
+                    : Math.Sin(CompanionMotion.SpritePhase(scene.Motion.Distance) * Math.PI * 4) * .7;
                 double jump = reaction * Math.Sin(Math.Min(1, scene.ReactionAge / .5) * Math.PI) *
                     (scene.Kind == CompanionKind.Bunny ? 12 : 7);
                 // Ground companions have their feet at y=51 in a 64-unit
@@ -37,8 +38,8 @@ namespace HolidayTimer
                 // 125-unit rim so angular travel matches the gait distance.
                 double groundAnchor = scene.Kind == CompanionKind.Bird || scene.Kind == CompanionKind.Airplane
                     ? 0 : 19 * CompanionMotion.ArtScale;
-                double radius = Math.Min(149, CompanionMotion.Radius + groundAnchor + bounce + jump + ringWave +
-                    pulse * (5 + 4 * scene.Intensity) - VisitOffset(scene.VisitAge));
+                double radius = Math.Min(149, CompanionMotion.Radius + groundAnchor + bounce + jump +
+                    (walkingAnimal ? 0 : ringWave + pulse * (5 + 4 * scene.Intensity)) - VisitOffset(scene.VisitAge));
                 double angle = -Math.PI / 2 + scene.Motion.Angle;
                 double x = 172 + Math.Cos(angle) * radius;
                 double y = 172 + Math.Sin(angle) * radius;

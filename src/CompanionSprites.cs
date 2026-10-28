@@ -31,8 +31,8 @@ namespace HolidayTimer
         private static readonly Frame[] BirdFly = Load("wildlife-silhouettes.png", 700, .112,
             new int[,] { { 32, 606, 337, 229 }, { 504, 483, 337, 297 }, { 951, 452, 345, 339 }, { 1387, 613, 354, 211 } });
         private static readonly Frame[] Resting = LoadRest();
-        private static readonly Geometry DogBodyClip = BodyBoundary("M 0,0 L 64,0 L 64,36 L 50,36 C 47,39 44,41 40,40 C 36,37 33,37 29,37 C 25,37 22,40 17,40 L 14,36 L 0,36 Z");
-        private static readonly Geometry CatBodyClip = BodyBoundary("M 0,0 L 64,0 L 64,38 L 50,38 C 47,41 44,43 40,41 C 36,40 33,40 29,40 C 25,40 22,42 18,41 L 15,39 L 0,39 Z");
+        private static readonly Geometry DogBodyClip = BodyBoundary("M 0,0 L 64,0 L 64,34 L 49,34 C 47,37 45,39 42,39 C 36,37 29,35.5 24,36 C 21,38 18,40 15,38 L 13,35 L 0,35 Z");
+        private static readonly Geometry CatBodyClip = BodyBoundary("M 0,0 L 64,0 L 64,37 L 49,37 C 46,40 43,41 40,40 C 34,39 27,38 23,39 C 20,41 18,41 15,39 L 13,37 L 0,37 Z");
 
         private static Geometry BodyBoundary(string path)
         { Geometry geometry = Geometry.Parse(path); geometry.Freeze(); return geometry; }
@@ -98,12 +98,14 @@ namespace HolidayTimer
             }
             if (action == CompanionAction.Rest)
             {
-                Paint(dc, kind == CompanionKind.Cat ? CatGroom[0] : kind == CompanionKind.Dog ? DogBark[0] : moving[0], colour); return;
+                if (kind == CompanionKind.Cat || kind == CompanionKind.Dog)
+                { DrawWalkingAnimal(dc, kind, distance, colour, CompanionMotion.Smooth(age / .75)); return; }
+                Paint(dc, moving[0], colour); return;
             }
             if (action == CompanionAction.Play && (kind == CompanionKind.Dog || kind == CompanionKind.Cat))
             {
                 Frame[] poses = kind == CompanionKind.Cat ? CatGroom : DogBark;
-                int frame = Math.Min(3, (int)(Math.Max(0, age) * 2.0) % 4);
+                int frame = Math.Min(3, (int)(Math.Max(0, age) * 1.2) % 4);
                 Paint(dc, poses[frame], colour); return;
             }
             if (action == CompanionAction.Play && (kind == CompanionKind.Bunny || kind == CompanionKind.Bird))
@@ -115,50 +117,69 @@ namespace HolidayTimer
             { DrawWalkingAnimal(dc, kind, distance, colour); return; }
             // The rabbit and bird use separate four-frame artwork; preserve
             // their animation timing when tuning the quadrupeds' stride.
-            double framePhase = Math.Max(0, distance) / (10 / CompanionMotion.StanceFraction * CompanionMotion.ArtScale);
+            double framePhase = CompanionMotion.SpritePhase(distance);
             int index = (int)Math.Floor(framePhase * 4) % moving.Length;
             Paint(dc, moving[index], colour);
         }
 
-        private static void DrawWalkingAnimal(DrawingContext dc, CompanionKind kind, double distance, Brush colour)
+        private static void DrawWalkingAnimal(DrawingContext dc, CompanionKind kind, double distance, Brush colour, double settle = 0)
         {
             double cycle = CompanionMotion.StepPhase(distance);
-            // Four alternating contacts. The contact half of each gait is
-            // driven directly by distance, so planted paws do not slide.
-            Leg(dc, 19, 35, cycle + .50, true, colour);
-            Leg(dc, 40, 35, cycle + .25, false, colour);
-            Leg(dc, 20, 35, cycle, true, colour);
-            Leg(dc, 41, 35, cycle + .75, false, colour);
+            bool cat = kind == CompanionKind.Cat;
+            double bodyLift = .22 * (1 - Math.Cos(cycle * Math.PI * 4)) * (1 - settle);
+            Leg(dc, QuadrupedGait.Pose(cat, true, true, cycle, bodyLift, settle), true, true, cat, colour);
+            Leg(dc, QuadrupedGait.Pose(cat, false, true, cycle, bodyLift, settle), false, true, cat, colour);
+            dc.PushTransform(new TranslateTransform(0, -bodyLift));
             dc.PushClip(kind == CompanionKind.Cat ? CatBodyClip : DogBodyClip);
-            Paint(dc, kind == CompanionKind.Cat ? CatWalk[0] : DogWalk[0], colour); dc.Pop();
+            Paint(dc, kind == CompanionKind.Cat ? CatWalk[0] : DogWalk[0], colour); dc.Pop(); dc.Pop();
+            Leg(dc, QuadrupedGait.Pose(cat, true, false, cycle, bodyLift, settle), true, false, cat, colour);
+            Leg(dc, QuadrupedGait.Pose(cat, false, false, cycle, bodyLift, settle), false, false, cat, colour);
         }
 
-        private static void Leg(DrawingContext dc, double x, double y, double phase, bool hind, Brush colour)
+        private static Point At(QuadrupedGait.Joint joint) { return new Point(joint.X, joint.Y); }
+
+        private static void Leg(DrawingContext dc, QuadrupedGait.LegPose pose, bool hind, bool far, bool cat, Brush colour)
         {
-            double stride = CompanionMotion.FootX(phase), lift = CompanionMotion.FootLift(phase);
-            double footX = x + stride, footY = 51 - lift;
-            // A dog's or cat's hind leg folds forward at the stifle and back
-            // at the hock; the foreleg has a gentler, nearly vertical bend.
-            // Keep the lower joints close to the foot instead of drawing a
-            // second exaggerated zig-zag as the paw passes under the body.
-            double kneeX = x + (hind ? 2.0 : -.4) + stride * .18;
-            double kneeY = y + 7;
-            double ankleX = x + (hind ? -.7 : 0) + stride * .72;
-            double ankleY = footY - 3.0;
-            double width = hind ? 2.5 : 1.8;
+            double scale = (far ? .76 : 1) * (cat ? .8 : 1);
+            double rootWidth = (hind ? 4.3 : 3.15) * scale;
+            double kneeWidth = (hind ? 1.8 : 1.2) * scale;
+            double ankleWidth = .65 * scale;
+            Point root = At(pose.Root), knee = At(pose.Knee), ankle = At(pose.Ankle);
+            Vector upper = knee - root, lower = ankle - knee;
+            Vector rootTangent = UnitVector(upper), kneeTangent = UnitVector(ankle - root), ankleTangent = UnitVector(lower);
+            Vector rootNormal = Normal(rootTangent), kneeNormal = Normal(kneeTangent), ankleNormal = Normal(ankleTangent);
+            Point outerRoot = root + rootNormal * rootWidth, innerRoot = root - rootNormal * rootWidth;
+            Point outerKnee = knee + kneeNormal * kneeWidth, innerKnee = knee - kneeNormal * kneeWidth;
+            Point outerAnkle = ankle + ankleNormal * ankleWidth, innerAnkle = ankle - ankleNormal * ankleWidth;
+            // One continuous contour grows from a broad thigh/shoulder inside
+            // the torso, then tapers through the joints into a small paw.
+            // The bones guide the pose; their outlines are never drawn as rods.
             StreamGeometry geometry = new StreamGeometry();
             using (StreamGeometryContext g = geometry.Open())
             {
-                g.BeginFigure(new Point(x - width, y), true, true);
-                g.QuadraticBezierTo(new Point(x - width, y + 3), new Point(kneeX - 1.5, kneeY), true, false);
-                g.QuadraticBezierTo(new Point(ankleX - 1.0, ankleY - 1), new Point(footX - .9, footY - .6), true, false);
-                g.QuadraticBezierTo(new Point(footX - .9, footY + .6), new Point(footX + 1.5, footY + .6), true, false);
-                g.QuadraticBezierTo(new Point(footX + 2.0, footY + .2), new Point(footX + .8, footY - .8), true, false);
-                g.QuadraticBezierTo(new Point(ankleX + .9, ankleY - .5), new Point(kneeX + 1.3, kneeY), true, false);
-                g.QuadraticBezierTo(new Point(x + width, y + 3), new Point(x + width, y), true, false);
+                g.BeginFigure(outerRoot, true, true);
+                g.BezierTo(outerRoot + upper * .38 + rootNormal * (.2 * rootWidth),
+                    outerKnee - kneeTangent * (upper.Length * .25), outerKnee, true, false);
+                g.BezierTo(outerKnee + kneeTangent * (lower.Length * .23),
+                    outerAnkle - ankleTangent * (lower.Length * .28), outerAnkle, true, false);
+                g.QuadraticBezierTo(new Point(pose.Paw.X - .9 * scale, pose.Paw.Y - 1.1),
+                    new Point(pose.Paw.X - .65 * scale, pose.Paw.Y - .25), true, false);
+                g.QuadraticBezierTo(new Point(pose.Paw.X + .4 * scale, pose.Paw.Y + .1),
+                    new Point(pose.Paw.X + 1.6 * scale, pose.Paw.Y - .05), true, false);
+                g.QuadraticBezierTo(new Point(pose.Paw.X + 2.0 * scale, pose.Paw.Y - .7),
+                    new Point(pose.Paw.X + .6 * scale, pose.Paw.Y - 1.3), true, false);
+                g.QuadraticBezierTo(innerAnkle + ankleTangent, innerAnkle, true, false);
+                g.BezierTo(innerAnkle - ankleTangent * (lower.Length * .28),
+                    innerKnee + kneeTangent * (lower.Length * .23), innerKnee, true, false);
+                g.BezierTo(innerKnee - kneeTangent * (upper.Length * .25),
+                    innerRoot + upper * .4, innerRoot, true, false);
+                g.QuadraticBezierTo(root - rootTangent * (rootWidth * .65), outerRoot, true, false);
             }
             geometry.Freeze(); dc.DrawGeometry(colour, null, geometry);
         }
+
+        private static Vector UnitVector(Vector value) { value.Normalize(); return value; }
+        private static Vector Normal(Vector direction) { return new Vector(-direction.Y, direction.X); }
 
         private static void Paint(DrawingContext dc, Frame frame, Brush colour)
         {

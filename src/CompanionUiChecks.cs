@@ -40,6 +40,9 @@ namespace HolidayTimer
             Check(CompanionScene.VisitOffset(0) == 0 && CompanionScene.VisitOffset(.525) > 30 && CompanionScene.VisitOffset(1.05) == 0,
                 "An occasional approach returns to the ring in just over one second");
             CompanionArt studyArt = new CompanionArt(HolidayTheme.Beach, true);
+            foreach (CompanionKind animal in new[] { CompanionKind.Dog, CompanionKind.Cat })
+                for (int phase = 0; phase < 24; phase++)
+                    Check(ConnectedWalkingSilhouette(animal, phase / 24.0), animal + " legs grow from the torso throughout the stride");
             if (render)
             {
                 RenderCompanionStudies(studyArt, Path.Combine(root, "previews", "companion-anatomy.png"));
@@ -210,6 +213,42 @@ namespace HolidayTimer
                 Check(CompanionScene.RenderingSceneCount == baseline, "Hiding the companion detaches its rendering loop");
             }
             finally { CompanionScene.Stop(companion); host.Close(); }
+        }
+
+        private static bool ConnectedWalkingSilhouette(CompanionKind kind, double cycle)
+        {
+            const int size = 128;
+            DrawingVisual visual = new DrawingVisual();
+            using (DrawingContext dc = visual.RenderOpen())
+            {
+                dc.PushTransform(new ScaleTransform(2, 2));
+                CompanionSprites.Draw(dc, kind, 0, 0, Brushes.White, CompanionAction.Travel,
+                    cycle * CompanionMotion.Stride / CompanionMotion.StanceFraction * CompanionMotion.ArtScale, 0);
+                dc.Pop();
+            }
+            RenderTargetBitmap bitmap = new RenderTargetBitmap(size, size, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(visual); byte[] pixels = Pixels(bitmap);
+            bool[] visited = new bool[size * size]; int total = 0, largest = 0;
+            for (int i = 0; i < visited.Length; i++) if (pixels[i * 4 + 3] >= 128) total++;
+            int[] queue = new int[visited.Length];
+            for (int start = 0; start < visited.Length; start++)
+            {
+                if (visited[start] || pixels[start * 4 + 3] < 128) continue;
+                int head = 0, tail = 1; queue[0] = start; visited[start] = true;
+                while (head < tail)
+                {
+                    int at = queue[head++], x = at % size, y = at / size;
+                    for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++)
+                    {
+                        int nx = x + dx, ny = y + dy;
+                        if (nx < 0 || nx >= size || ny < 0 || ny >= size) continue;
+                        int next = ny * size + nx;
+                        if (!visited[next] && pixels[next * 4 + 3] >= 128) { visited[next] = true; queue[tail++] = next; }
+                    }
+                }
+                largest = Math.Max(largest, tail);
+            }
+            return total > 0 && largest >= total * .985;
         }
 
         private static byte[] ArtPixels(CompanionArt art, CompanionKind kind, double phase, double reaction, CompanionAction action = CompanionAction.Travel)

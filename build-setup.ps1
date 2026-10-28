@@ -1,9 +1,9 @@
 param(
     [switch]$Test,
     [switch]$SkipAppBuild,
-    [string]$PayloadDirectory = 'dist\companion-lifecycles',
-    [string]$OutputDirectory = 'dist\companion-lifecycles-setup',
-    [string]$MetadataDirectory = 'dist\companion-lifecycles-setup-verification',
+    [string]$PayloadDirectory = 'dist\walking-rework',
+    [string]$OutputDirectory = 'dist\walking-rework-setup',
+    [string]$MetadataDirectory = 'dist\walking-rework-setup-verification',
     [string]$CompilerPath = 'tools\inno-6.7.3\ISCC.exe',
     [switch]$IsolationTest,
     [string]$TestRoot
