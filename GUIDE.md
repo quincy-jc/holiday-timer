@@ -4,7 +4,7 @@ A native Windows countdown with a live glass panel, animated orb and tray icon. 
 
 ## Install from one file
 
-Share `dist/walking-rework-setup/HolidayTimerSetup.exe` for version 1.9.2. Double-click and choose Install. It updates the existing app without duplicate Apps entries and preserves preferences. A new or expired countdown automatically loads the next NSW public holiday, and a settings picker can refresh dates from the NSW Government. Previous artifacts retain their directories.
+Share `dist/celebration-override-setup/HolidayTimerSetup.exe` for version 1.9.3. Double-click and choose Install. It updates the existing app without duplicate Apps entries and preserves preferences. A new or expired countdown automatically loads the next NSW public holiday, and a settings picker can refresh dates from the NSW Government. Previous artifacts retain their directories.
 
 The setup installs for the current Windows user at `%LOCALAPPDATA%\Programs\HolidayTimer`. On Windows 11 it needs no administrator password, restart, or internet connection. It adds a Start menu shortcut and **Holiday Timer** to **Settings → Apps → Installed apps**, where you can choose **Uninstall**.
 
@@ -14,9 +14,9 @@ The single setup file contains the app, configuration, software licence, and fon
 
 ## Open the portable build
 
-The current portable app is `dist/walking-rework/HolidayTimer.exe`. Keep its configuration and licences beside it. Prior builds remain in their existing folders.
+The current portable app is `dist/celebration-override/HolidayTimer.exe`. Keep its configuration and licences beside it. Prior builds remain in their existing folders.
 
-If another copy is running, **save any edits you want to keep**, then choose **Exit Holiday Timer** from its system tray menu. Open `dist/walking-rework/HolidayTimer.exe`. The app is single-instance: opening another copy while the old one is running activates the existing app.
+If another copy is running, **save any edits you want to keep**, then choose **Exit Holiday Timer** from its system tray menu. Open `dist/celebration-override/HolidayTimer.exe`. The app is single-instance: opening another copy while the old one is running activates the existing app.
 
 Keep `HolidayTimer.exe.config`, `LICENSE.txt` and `Inter-LICENSE.txt` beside the executable. Inter Display is bundled, and the app uses the .NET Framework included with Windows 11.
 
@@ -61,13 +61,13 @@ Dogs and cats have fuller thighs and shoulders that blend into the torso, with p
 
 ## Updates
 
-Version 1.9.2 checks the public `quincy-jc/holiday-timer` GitHub Releases page at startup and approximately every six hours. **Settings → Updates** or **Check for updates** in the tray lets you check immediately. A tray notification appears when a newer stable version is available. Offline or failed checks leave the existing countdown working.
+Version 1.9.3 checks the public `quincy-jc/holiday-timer` GitHub Releases page at startup and approximately every six hours. **Settings → Updates** or **Check for updates** in the tray lets you check immediately. A tray notification appears when a newer stable version is available. Offline or failed checks leave the existing countdown working.
 
 Choose **Download and install**, save any settings edits, and confirm. The app verifies the download against the release's SHA-256 digest and version, closes, and the per-user installer updates the existing installation and reopens it. Updates are never installed without your action. If settings is closed while a download finishes, the app waits until you return and select **Install update**. An unsigned installer may still show a Windows security prompt; the digest checks download integrity and does not replace code signing.
 
 An existing 1.7.0 or older installation needs one manual install of the current version to gain working update checks; the 1.7.0 updater could not contact GitHub. Exit the old app from its tray menu before running that installer. Version 1.7.1 and later can update from within the app. Portable copies open the release page instead of silently installing to a different location.
 
-For a later release, update the assembly and installer version numbers in `src/AssemblyInfo.cs` and `installer/HolidayTimer.iss`, build and test the setup, and publish it as `HolidayTimerSetup.exe` on a non-prerelease GitHub release with a matching stable three-part tag such as `v1.9.2`. GitHub must expose the asset's SHA-256 digest before the app offers the release.
+For a later release, update the assembly and installer version numbers in `src/AssemblyInfo.cs` and `installer/HolidayTimer.iss`, build and test the setup, and publish it as `HolidayTimerSetup.exe` on a non-prerelease GitHub release with a matching stable three-part tag such as `v1.9.3`. GitHub must expose the asset's SHA-256 digest before the app offers the release.
 
 ## Music response
 
@@ -103,7 +103,9 @@ When the actual target date and time arrives, the app automatically celebrates o
 
 Choose **Fireworks + confetti** for layered launches and glowing bursts, or **Flowers + confetti** for bouquets that launch upward like rockets, burst, then scatter falling petals and confetti. Both follow the selected scheme, font and default/custom text colour, keep the message area clear, and repeat until dismissed. Fireworks remains the default for existing preferences. **Preview celebration** tries the unsaved draft without recording an arrival or a morning greeting.
 
-Each connected monitor gets its own transparent fullscreen celebration with centred text, sized for that display and its scaling. **Continue · Esc to close** on any monitor or Escape dismisses the whole group; Escape also works after focus moves elsewhere. Connecting or disconnecting a monitor rearranges the visible celebration without recording a new arrival. Hiding, minimizing or closing stops rendering and releases the temporary Escape shortcut as appropriate; app shutdown removes it. Reduced motion and High Contrast show calm text on every display. There is no sound.
+**Always animate celebrations**, in the Celebration tab, allows fireworks, flowers and confetti even when Windows animation effects are off. It starts off for new and existing users, applies to previews immediately, and is remembered for morning and arrival celebrations after **Save countdown**. Its description explains when Windows animations are suppressing the effects. This override affects celebrations only; the orb, companions and Windows settings are unchanged. High Contrast always uses the text-only celebration.
+
+Each connected monitor gets its own transparent fullscreen celebration with centred text, sized for that display and its scaling. **Continue · Esc to close** on any monitor or Escape dismisses the whole group; Escape also works after focus moves elsewhere. Connecting or disconnecting a monitor rearranges the visible celebration without recording a new arrival. Hiding, minimizing or closing stops rendering and releases the temporary Escape shortcut as appropriate; app shutdown removes it. Reduced motion shows calm text unless the celebration override is enabled; High Contrast always shows calm text on every display. There is no sound.
 
 Optionally enable **Celebrate each morning** for a greeting once per local calendar day between 5 am and noon, after login/unlock or while the app stays open. It waits while Windows is locked and stops scheduling new morning greetings after the target arrives. The morning greeting shows Days using the selected elapsed/workday basis. Arrival takes priority over a morning greeting or preview. The once-per-morning schedule is separate from the animation, which keeps playing until dismissed.
 
@@ -122,10 +124,10 @@ Preferences are stored at `%LOCALAPPDATA%\HolidayTimer\settings.json`, with the 
 Build and run isolated checks without replacing the preserved original:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 -Test -OutputDirectory dist\walking-rework
+powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 -Test -OutputDirectory dist\celebration-override
 ```
 
-`dist/walking-rework/HolidayTimer.exe --render-preview` renders the actual WPF layouts into the updated build's `previews` folder without changing personal preferences or login registration. Layout captures use mock desktop backdrops; music examples use synthetic signals. Live Windows blur and actual audio capture have separate native evidence. See `VERIFICATION.md` for the current checks and evidence.
+`dist/celebration-override/HolidayTimer.exe --render-preview` renders the actual WPF layouts into the updated build's `previews` folder without changing personal preferences or login registration. Layout captures use mock desktop backdrops; music examples use synthetic signals. Live Windows blur and actual audio capture have separate native evidence. See `VERIFICATION.md` for the current checks and evidence.
 
 To build the single-file setup and run the application and isolated installation checks:
 

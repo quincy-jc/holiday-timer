@@ -64,6 +64,7 @@ namespace HolidayTimer
         [DataMember] public string WorkStart { get; set; }
         [DataMember] public string WorkFinish { get; set; }
         [DataMember] public CelebrationKind CelebrationEffect { get; set; }
+        [DataMember] public bool AlwaysAnimateCelebrations { get; set; }
         [DataMember] public CompanionKind Companion { get; set; }
         [DataMember] public bool CompanionScenery { get; set; }
 
@@ -126,6 +127,7 @@ namespace HolidayTimer
             WorkStart = "09:00";
             WorkFinish = "17:00";
             CelebrationEffect = CelebrationKind.Fireworks;
+            AlwaysAnimateCelebrations = false;
             Companion = CompanionKind.None;
             CompanionScenery = true;
         }

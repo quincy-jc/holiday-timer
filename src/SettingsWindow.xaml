@@ -193,6 +193,8 @@
                     <TextBlock x:Name="CelebrationDescription" Text="Layered fireworks with glowing trails and falling confetti. Plays until you dismiss it." Foreground="{DynamicResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0"/>
                     <TextBlock x:Name="ArrivalHint" Text="Your celebration also starts automatically at the target time, on every screen." Foreground="{DynamicResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0"/>
                   </StackPanel>
+                  <CheckBox x:Name="AlwaysAnimateCelebrations" Content="Always animate cele_brations" Margin="0,16,0,0" AutomationProperties.Name="Always animate celebrations, even when Windows animation effects are off"/>
+                  <TextBlock x:Name="CelebrationMotionStatus" Foreground="{DynamicResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="44,3,0,0" AutomationProperties.LiveSetting="Polite"/>
                   <Button x:Name="PreviewGreeting" HorizontalAlignment="Left" Margin="0,16,0,0" Padding="12,8" FontSize="12" AutomationProperties.Name="Preview celebration"><StackPanel Orientation="Horizontal"><TextBlock Text="Preview celebration"/><Path Data="M 1 9 L 9 1 M 3 1 L 9 1 L 9 7" Width="10" Height="10" Stroke="{DynamicResource Heading}" StrokeThickness="1.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Margin="8,0,0,0" VerticalAlignment="Center"/></StackPanel></Button>
                 </StackPanel>
               </TabItem>

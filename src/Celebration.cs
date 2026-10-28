@@ -25,6 +25,7 @@ namespace HolidayTimer
         { get { int count = 0; foreach (RunState state in Runs.Values) if (state.Attached) count++; return count; } }
         internal static long FrameCount(Window window) { RunState state; return Runs.TryGetValue(window, out state) ? state.Frames : 0; }
         internal static CelebrationKind? CurrentKind(Window window) { RunState state; return Runs.TryGetValue(window, out state) ? (CelebrationKind?)state.Kind : null; }
+        internal static bool? MotionOverride(Window window) { RunState state; return Runs.TryGetValue(window, out state) ? (bool?)state.AlwaysAnimate : null; }
         internal static Color[] BaseColours(Window window) { RunState state; return Runs.TryGetValue(window, out state) ? (Color[])state.Colours.Clone() : new Color[0]; }
         internal static Rect MessageClearance(Window window) { RunState state; return Runs.TryGetValue(window, out state) ? state.Clearance : Rect.Empty; }
         internal static int CachedResourceCount(Window window) { RunState state; return Runs.TryGetValue(window, out state) ? state.CachedResourceCount : 0; }
@@ -50,12 +51,18 @@ namespace HolidayTimer
             window.UpdateLayout();
         }
 
-        internal static void Play(Window window, bool animate, CelebrationKind kind = CelebrationKind.Fireworks)
+        internal static bool AnimationAllowed(bool windowsAnimations, bool highContrast, bool alwaysAnimate)
+        { return !highContrast && (windowsAnimations || alwaysAnimate); }
+
+        private static bool MotionAllowed(bool alwaysAnimate)
+        { return AnimationAllowed(SystemParameters.ClientAreaAnimation, SystemParameters.HighContrast, alwaysAnimate); }
+
+        internal static void Play(Window window, bool animate, CelebrationKind kind = CelebrationKind.Fireworks, bool alwaysAnimate = false)
         {
             if (window == null) throw new ArgumentNullException("window");
             Stop(window);
-            if (!animate || !SystemParameters.ClientAreaAnimation || SystemParameters.HighContrast || !window.IsVisible || window.WindowState == WindowState.Minimized) return;
-            RunState state = Create(window, kind);
+            if (!animate || !MotionAllowed(alwaysAnimate) || !window.IsVisible || window.WindowState == WindowState.Minimized) return;
+            RunState state = Create(window, kind, alwaysAnimate);
             if (state == null) return;
             state.Start();
         }
@@ -72,14 +79,14 @@ namespace HolidayTimer
             if (state != null) state.Paint(seconds);
         }
 
-        private static RunState Create(Window window, CelebrationKind kind)
+        private static RunState Create(Window window, CelebrationKind kind, bool alwaysAnimate = false)
         {
             Canvas canvas = window.FindName("CelebrationCanvas") as Canvas;
             if (canvas == null) return null;
             window.UpdateLayout();
             if (canvas.ActualWidth <= 0 || canvas.ActualHeight <= 0) return null;
             canvas.IsHitTestVisible = false; canvas.ClipToBounds = true;
-            RunState state = new RunState(window, canvas, kind);
+            RunState state = new RunState(window, canvas, kind, alwaysAnimate);
             Runs.Add(window, state);
             window.Closed += state.Closed;
             window.IsVisibleChanged += state.VisibilityChanged;
@@ -127,6 +134,7 @@ namespace HolidayTimer
             internal readonly Window Window;
             internal readonly Canvas Canvas;
             internal readonly CelebrationKind Kind;
+            internal readonly bool AlwaysAnimate;
             internal readonly Color[] Colours;
             internal readonly Layer Surface = new Layer();
             internal bool Attached;
@@ -142,9 +150,9 @@ namespace HolidayTimer
             private double width, height, scale;
             private Geometry safeClip;
             internal int CachedResourceCount { get { return inks.Count + pens.Count + glows.Count + petalPaint.Length; } }
-            internal RunState(Window window, Canvas canvas, CelebrationKind kind)
+            internal RunState(Window window, Canvas canvas, CelebrationKind kind, bool alwaysAnimate)
             {
-                Window = window; Canvas = canvas; Kind = kind;
+                Window = window; Canvas = canvas; Kind = kind; AlwaysAnimate = alwaysAnimate;
                 Color[] source = window.TryFindResource("CelebrationColours") as Color[];
                 Colours = source == null || source.Length == 0 ? (Color[])Defaults.Clone() : (Color[])source.Clone();
                 Random generator = new Random(71241);
@@ -174,7 +182,7 @@ namespace HolidayTimer
             }
             private void Render(object sender, EventArgs args)
             {
-                if (!Window.IsVisible || Window.WindowState == WindowState.Minimized || !SystemParameters.ClientAreaAnimation || SystemParameters.HighContrast) { Stop(Window); return; }
+                if (!Window.IsVisible || Window.WindowState == WindowState.Minimized || !MotionAllowed(AlwaysAnimate)) { Stop(Window); return; }
                 double time = clock.Elapsed.TotalSeconds;
                 if (lastFrame >= 0 && time - lastFrame < 1.0 / 30) return;
                 lastFrame = time; Paint(time);
@@ -184,7 +192,7 @@ namespace HolidayTimer
             internal void VisibilityChanged(object sender, DependencyPropertyChangedEventArgs args) { if (!(bool)args.NewValue) Stop(Window); }
             internal void StateChanged(object sender, EventArgs args) { if (Window.WindowState == WindowState.Minimized) Stop(Window); }
             private void PreferenceChanged(object sender, PropertyChangedEventArgs args)
-            { if (!SystemParameters.ClientAreaAnimation || SystemParameters.HighContrast) Stop(Window); }
+            { if (!MotionAllowed(AlwaysAnimate)) Stop(Window); }
 
             internal void Paint(double time)
             {

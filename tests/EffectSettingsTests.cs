@@ -43,6 +43,7 @@ internal static class EffectSettingsTests
         Equal(CountdownUnit.Days, fresh.Unit, "Adding weeks does not change the initial countdown unit");
         False(fresh.MusicResponse, "Choosing an effect does not opt new users into playback capture");
         Equal(CelebrationKind.Fireworks, fresh.CelebrationEffect, "Existing celebrations retain fireworks by default");
+        False(fresh.AlwaysAnimateCelebrations, "New users follow Windows animation preferences by default");
         Equal(CompanionKind.None, fresh.Companion, "The new companion is optional and defaults to none");
         True(fresh.CompanionScenery, "Companion scenery is enabled by default when a companion is chosen");
 
@@ -54,6 +55,7 @@ internal static class EffectSettingsTests
         File.WriteAllText(legacyStore.FilePath, legacyJson);
         AppSettings legacy = legacyStore.Load();
         Equal(OrbEffect.Glass, legacy.Effect, "Older settings keep glass when the effect field is absent");
+        False(legacy.AlwaysAnimateCelebrations, "Older settings do not opt into the celebration motion override");
         Equal(CompanionKind.None, legacy.Companion, "Older preferences do not add a companion unexpectedly");
         True(legacy.CompanionScenery, "Older preferences receive the scenery default");
         Equal(.65, legacy.EffectIntensity, "Older settings receive the motion default rather than zero");
@@ -155,6 +157,12 @@ internal static class EffectSettingsTests
             AppSettings settings = ValidSettings(); settings.CelebrationEffect = kind;
             store.Save(settings);
             Equal(kind, store.Load().CelebrationEffect, kind + " celebration choice survives save and reload");
+            foreach (bool alwaysAnimate in new[] { true, false })
+            {
+                settings.AlwaysAnimateCelebrations = alwaysAnimate; store.Save(settings);
+                Equal(alwaysAnimate, store.Load().AlwaysAnimateCelebrations, kind + " motion override survives save and restart");
+                Equal(alwaysAnimate, settings.Copy().AlwaysAnimateCelebrations, kind + " draft preserves its motion override");
+            }
         }
         string saved = File.ReadAllText(store.FilePath);
         string backup = File.ReadAllText(store.FilePath + ".bak");

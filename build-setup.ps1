@@ -1,9 +1,9 @@
 param(
     [switch]$Test,
     [switch]$SkipAppBuild,
-    [string]$PayloadDirectory = 'dist\walking-rework',
-    [string]$OutputDirectory = 'dist\walking-rework-setup',
-    [string]$MetadataDirectory = 'dist\walking-rework-setup-verification',
+    [string]$PayloadDirectory = 'dist\celebration-override',
+    [string]$OutputDirectory = 'dist\celebration-override-setup',
+    [string]$MetadataDirectory = 'dist\celebration-override-setup-verification',
     [string]$CompilerPath = 'tools\inno-6.7.3\ISCC.exe',
     [switch]$IsolationTest,
     [string]$TestRoot

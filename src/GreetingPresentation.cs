@@ -102,7 +102,7 @@ namespace HolidayTimer
                     Window window = prepared[i];
                     CelebrationDismissal.Attach(window, i == 0 && desktopIntegration);
                     window.Opacity = 1;
-                    Celebration.Play(window, animate && desktopIntegration, settings.CelebrationEffect);
+                    Celebration.Play(window, animate && desktopIntegration, settings.CelebrationEffect, settings.AlwaysAnimateCelebrations);
                     Motion.Attach(window, desktopIntegration);
                 }
                 Greeting.Activate();
