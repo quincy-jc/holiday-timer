@@ -43,7 +43,7 @@ internal static class EffectSettingsTests
         Equal(CountdownUnit.Days, fresh.Unit, "Adding weeks does not change the initial countdown unit");
         False(fresh.MusicResponse, "Choosing an effect does not opt new users into playback capture");
         Equal(CelebrationKind.Fireworks, fresh.CelebrationEffect, "Existing celebrations retain fireworks by default");
-        False(fresh.AlwaysAnimateCelebrations, "New users follow Windows animation preferences by default");
+        True(fresh.AlwaysAnimateCelebrations, "New users see celebration effects without enabling the override manually");
         Equal(CompanionKind.None, fresh.Companion, "The new companion is optional and defaults to none");
         True(fresh.CompanionScenery, "Companion scenery is enabled by default when a companion is chosen");
 
@@ -55,7 +55,7 @@ internal static class EffectSettingsTests
         File.WriteAllText(legacyStore.FilePath, legacyJson);
         AppSettings legacy = legacyStore.Load();
         Equal(OrbEffect.Glass, legacy.Effect, "Older settings keep glass when the effect field is absent");
-        False(legacy.AlwaysAnimateCelebrations, "Older settings do not opt into the celebration motion override");
+        True(legacy.AlwaysAnimateCelebrations, "Older settings without a saved animation choice receive the enabled default");
         Equal(CompanionKind.None, legacy.Companion, "Older preferences do not add a companion unexpectedly");
         True(legacy.CompanionScenery, "Older preferences receive the scenery default");
         Equal(.65, legacy.EffectIntensity, "Older settings receive the motion default rather than zero");
@@ -172,6 +172,9 @@ internal static class EffectSettingsTests
         Directory.CreateDirectory(Path.GetDirectoryName(legacy.FilePath));
         File.WriteAllText(legacy.FilePath, "{\"HolidayName\":\"Existing countdown\",\"TargetLocal\":\"2030-12-25T09:00:00\",\"IsConfigured\":true}");
         Equal(CelebrationKind.Fireworks, legacy.Load().CelebrationEffect, "Legacy preferences migrate to their existing fireworks celebration");
+        True(legacy.Load().AlwaysAnimateCelebrations, "A missing celebration motion preference uses the new enabled default");
+        File.WriteAllText(legacy.FilePath, "{\"HolidayName\":\"Existing countdown\",\"TargetLocal\":\"2030-12-25T09:00:00\",\"IsConfigured\":true,\"AlwaysAnimateCelebrations\":false}");
+        False(legacy.Load().AlwaysAnimateCelebrations, "An explicitly saved Off remains Off after the default changes");
     }
 
     private static string[] InvalidColours()

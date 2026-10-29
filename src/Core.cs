@@ -127,7 +127,7 @@ namespace HolidayTimer
             WorkStart = "09:00";
             WorkFinish = "17:00";
             CelebrationEffect = CelebrationKind.Fireworks;
-            AlwaysAnimateCelebrations = false;
+            AlwaysAnimateCelebrations = true;
             Companion = CompanionKind.None;
             CompanionScenery = true;
         }

@@ -1,7 +1,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$CompilerPath,
-    [string]$PayloadDirectory = 'dist\celebration-override',
-    [string]$PreviousPayloadDirectory = 'dist\walking-rework',
+    [string]$PayloadDirectory = 'dist\celebration-defaults',
+    [string]$PreviousPayloadDirectory = 'dist\celebration-override',
     [string]$TestRoot
 )
 
@@ -146,7 +146,7 @@ function Assert-Payload([string]$ExpectedPayload = $PayloadDirectory) {
     }
 }
 
-function Assert-AppsEntry([string]$ExpectedVersion = '1.9.3') {
+function Assert-AppsEntry([string]$ExpectedVersion = '1.9.4') {
     $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($testUninstallPath)
     try {
         Assert-Check ($null -ne $key) 'One isolated Windows Apps uninstall entry exists'
@@ -312,7 +312,7 @@ try {
     Assert-Check ((Get-FileSnapshot (Join-Path $preferencesRoot 'settings.json')) -eq $preferenceHashes[0]) 'The reinstall cycle preserves saved preferences'
 
     Assert-Check ((Get-PersonalSnapshot) -eq $personalBefore) 'Personal preferences, startup, Apps entries, shortcuts, and the running app remain untouched'
-    $result = [ordered]@{ Passed = $checks; TestRoot = $TestRoot; SetupHash = Get-FileSnapshot $isolatedSetup; Payload = $PayloadDirectory; PreviousVersion = $previousVersion; UpgradeVersion = '1.9.3'; PersonalStateUnchanged = $true }
+    $result = [ordered]@{ Passed = $checks; TestRoot = $TestRoot; SetupHash = Get-FileSnapshot $isolatedSetup; Payload = $PayloadDirectory; PreviousVersion = $previousVersion; UpgradeVersion = '1.9.4'; PersonalStateUnchanged = $true }
     $result | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $TestRoot 'result.json') -Encoding UTF8
     Write-Output ('Installer acceptance checks passed: ' + $checks)
     Write-Output ('Evidence: ' + (Join-Path $TestRoot 'result.json'))
