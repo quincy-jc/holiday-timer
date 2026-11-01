@@ -1,10 +1,10 @@
 # Holiday Timer
 
-A native Windows countdown with a live glass panel, animated orb and tray icon. Choose a named event and display days, weeks, hours, minutes or seconds using elapsed or scheduled working time.
+A native Windows countdown with a live glass panel, animated orb and tray icon. Choose a named event and display calendar days, elapsed weeks/hours/minutes/seconds, or scheduled working time.
 
 ## Install from one file
 
-Share `dist/celebration-defaults-setup/HolidayTimerSetup.exe` for version 1.9.4. Double-click and choose Install. It updates the existing app without duplicate Apps entries and preserves preferences. A new or expired countdown automatically loads the next NSW public holiday, and a settings picker can refresh dates from the NSW Government. Previous artifacts retain their directories.
+Share `dist/calendar-days-setup/HolidayTimerSetup.exe` for version 1.9.5. Double-click and choose Install. It updates the existing app without duplicate Apps entries and preserves preferences. A new or expired countdown automatically loads the next NSW public holiday, and a settings picker can refresh dates from the NSW Government. Previous artifacts retain their directories.
 
 The setup installs for the current Windows user at `%LOCALAPPDATA%\Programs\HolidayTimer`. On Windows 11 it needs no administrator password, restart, or internet connection. It adds a Start menu shortcut and **Holiday Timer** to **Settings → Apps → Installed apps**, where you can choose **Uninstall**.
 
@@ -14,9 +14,9 @@ The single setup file contains the app, configuration, software licence, and fon
 
 ## Open the portable build
 
-The current portable app is `dist/celebration-defaults/HolidayTimer.exe`. Keep its configuration and licences beside it. Prior builds remain in their existing folders.
+The current portable app is `dist/calendar-days/HolidayTimer.exe`. Keep its configuration and licences beside it. Prior builds remain in their existing folders.
 
-If another copy is running, **save any edits you want to keep**, then choose **Exit Holiday Timer** from its system tray menu. Open `dist/celebration-defaults/HolidayTimer.exe`. The app is single-instance: opening another copy while the old one is running activates the existing app.
+If another copy is running, **save any edits you want to keep**, then choose **Exit Holiday Timer** from its system tray menu. Open `dist/calendar-days/HolidayTimer.exe`. The app is single-instance: opening another copy while the old one is running activates the existing app.
 
 Keep `HolidayTimer.exe.config`, `LICENSE.txt` and `Inter-LICENSE.txt` beside the executable. Inter Display is bundled, and the app uses the .NET Framework included with Windows 11.
 
@@ -42,7 +42,7 @@ To correct a holiday, choose it under **NSW holidays…**, select **Edit holiday
 - **Glass opacity:** 35%–100%, shared by the settings tint and the orb's black or white centre. The orb backing fades gradually into its transparent exterior, with a subtle scheme-matched glow around it. The coloured shell, ribbons, halo, and soft glow stay independent of the centre opacity. The settings panel shows the blurred desktop through it, including when another window is active. Countdown text stays crisp and opaque; default lettering keeps its local readability shadow while custom lettering is plain. The utility strip retains at least 90% backing opacity.
 - **Gadget size:** 60%–180%, remembered after saving and fitted to the available screen. Labels and buttons keep readable minimum sizes when the orb is small.
 - **Workdays:** switch elapsed/workday mode on the gadget; on is accent highlighted and off is transparent. The real gadget saves immediately; a preview changes only its draft. Always-on-top is still available in settings and the tray.
-- **Days/Weeks/Hours/Minutes/Seconds:** choose any unit in settings or tray. The gadget cycles Days → Minutes → Seconds → Weeks → Hours → Days and saves immediately. Elapsed mode counts total time; workday mode applies the selected work schedule to every unit and displays workdays or working weeks/hours/minutes/seconds. Counts retain their stable row.
+- **Days/Weeks/Hours/Minutes/Seconds:** choose any unit in settings or tray. The gadget cycles Days → Minutes → Seconds → Weeks → Hours → Days and saves immediately. With workday mode off, Days counts local calendar dates: a holiday today is 0, tomorrow is 1, and the day after tomorrow is 2, regardless of its time. The count changes at midnight. Weeks/hours/minutes/seconds count total elapsed time. Workday mode applies the selected work schedule to every unit and displays workdays or working weeks/hours/minutes/seconds. Counts retain their stable row.
 - **Position:** drag the orb to move it. Its screen position is remembered and recovered when a monitor disappears.
 
 The buttons appear when the pointer enters the orb and fade away shortly after it leaves. Move from the orb into the button strip to use it. Tab also reveals the buttons and keeps them visible while they have keyboard focus.
@@ -61,13 +61,13 @@ Dogs and cats have fuller thighs and shoulders that blend into the torso, with p
 
 ## Updates
 
-Version 1.9.4 checks the public `quincy-jc/holiday-timer` GitHub Releases page immediately at startup and approximately every six hours while running. An already-running app can therefore take up to six hours to detect a newly published release. **Settings → Updates → Check for updates** or **Check for updates** in the tray starts a check immediately. A tray notification appears when an automatic check finds a newer stable version. Checks require an internet connection; offline or failed checks leave the existing countdown working.
+Version 1.9.5 checks the public `quincy-jc/holiday-timer` GitHub Releases page immediately at startup and approximately every six hours while running. An already-running app can therefore take up to six hours to detect a newly published release. **Settings → Updates → Check for updates** or **Check for updates** in the tray starts a check immediately. A tray notification appears when an automatic check finds a newer stable version. Checks require an internet connection; offline or failed checks leave the existing countdown working.
 
 Choose **Download and install**, save any settings edits, and confirm. The app verifies the download against the release's SHA-256 digest and version, closes, and the per-user installer updates the existing installation and reopens it. Updates are never installed without your action. If settings is closed while a download finishes, the app waits until you return and select **Install update**. An unsigned installer may still show a Windows security prompt; the digest checks download integrity and does not replace code signing.
 
 An existing 1.7.0 or older installation needs one manual install of the current version to gain working update checks; the 1.7.0 updater could not contact GitHub. Exit the old app from its tray menu before running that installer. Version 1.7.1 and later can update from within the app. Portable copies open the release page instead of silently installing to a different location.
 
-For a later release, update the assembly and installer version numbers in `src/AssemblyInfo.cs` and `installer/HolidayTimer.iss`, build and test the setup, and publish it as `HolidayTimerSetup.exe` on a non-prerelease GitHub release with a matching stable three-part tag such as `v1.9.4`. GitHub must expose the asset's SHA-256 digest before the app offers the release.
+For a later release, update the assembly and installer version numbers in `src/AssemblyInfo.cs` and `installer/HolidayTimer.iss`, build and test the setup, and publish it as `HolidayTimerSetup.exe` on a non-prerelease GitHub release with a matching stable three-part tag such as `v1.9.5`. GitHub must expose the asset's SHA-256 digest before the app offers the release.
 
 ## Music response
 
@@ -113,7 +113,7 @@ Startup registration applies only to the current Windows user. Disable the optio
 
 ## Countdown and saved preferences
 
-The target uses computer-local time. With workday mode off, days/weeks/hours/minutes/seconds are total elapsed units rounded up; a week is seven elapsed days. Skipped target times are rejected and repeated times use their later occurrence. Arrival is determined by the actual target instant.
+The target uses computer-local time. With workday mode off, Days subtracts the current local calendar date from the target's local calendar date and never goes below zero; it does not divide hours by 24. Weeks/hours/minutes/seconds are total elapsed units rounded up; a week is seven elapsed days. Skipped target times are rejected and repeated times use their later occurrence. A zero-day display before the departure time does not trigger an early arrival celebration; arrival is determined by the actual target instant.
 
 At the target, the count reaches zero and shows **Your holiday is here!**, and the automatic arrival celebration opens on all connected monitors. The saved arrival marker prevents the same selected target from celebrating again after restart. Saving appearance changes preserves this marker; previewing never sets it. You can edit the timer or choose a new target.
 
@@ -124,10 +124,10 @@ Preferences are stored at `%LOCALAPPDATA%\HolidayTimer\settings.json`, with the 
 Build and run isolated checks without replacing the preserved original:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 -Test -OutputDirectory dist\celebration-defaults
+powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 -Test -OutputDirectory dist\calendar-days
 ```
 
-`dist/celebration-defaults/HolidayTimer.exe --render-preview` renders the actual WPF layouts into the updated build's `previews` folder without changing personal preferences or login registration. Layout captures use mock desktop backdrops; music examples use synthetic signals. Live Windows blur and actual audio capture have separate native evidence. See `VERIFICATION.md` for the current checks and evidence.
+`dist/calendar-days/HolidayTimer.exe --render-preview` renders the actual WPF layouts into the updated build's `previews` folder without changing personal preferences or login registration. Layout captures use mock desktop backdrops; music examples use synthetic signals. Live Windows blur and actual audio capture have separate native evidence. See `VERIFICATION.md` for the current checks and evidence.
 
 To build the single-file setup and run the application and isolated installation checks:
 

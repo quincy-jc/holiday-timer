@@ -14,6 +14,7 @@ internal static class CoreTests
         try
         {
             CountdownCases();
+            CalendarDayCases();
             WeekCountdownCases();
             MorningCases();
             ArrivalCases();
@@ -41,8 +42,8 @@ internal static class CoreTests
     private static void CountdownCases()
     {
         DateTimeOffset now = new DateTimeOffset(2026, 10, 14, 9, 0, 0, TimeSpan.FromHours(11));
-        Equal(2L, CountdownCalculator.Remaining(now.AddDays(1).AddSeconds(1), now, CountdownUnit.Days),
-            "Days round up the remaining partial day");
+        Equal(1L, CountdownCalculator.Remaining(now.AddDays(1).AddSeconds(1), now, CountdownUnit.Days),
+            "Tomorrow is one calendar day even when more than 24 hours remain");
         Equal(1L, CountdownCalculator.Remaining(now.AddDays(1), now, CountdownUnit.Days),
             "An exact day is one day");
         Equal(8L, CountdownCalculator.Remaining(now.AddHours(8), now, CountdownUnit.Hours),
@@ -97,6 +98,46 @@ internal static class CoreTests
         Throws<ArgumentOutOfRangeException>(delegate {
             CountdownCalculator.Remaining(now.AddDays(1), now, (CountdownUnit)100);
         }, "Unknown display units are rejected");
+    }
+
+    private static void DayCount(long expected, DateTime target, DateTime now, string message)
+    {
+        Equal(expected, CountdownCalculator.Remaining(target, now, CountdownUnit.Days), message);
+        Equal(expected, CountdownCalculator.Remaining(CountdownCalculator.ToLocalOffset(target),
+            CountdownCalculator.ToLocalOffset(now), CountdownUnit.Days), message + " with offset timestamps");
+    }
+
+    private static void CalendarDayCases()
+    {
+        DateTime today = new DateTime(2026, 11, 2);
+        DayCount(0, today.AddHours(18), today.AddHours(9), "A holiday later today has zero days left");
+        DayCount(0, today.AddHours(23).AddMinutes(59), today.AddMinutes(1), "Nearly 24 hours within today is still zero calendar days");
+        DayCount(1, today.AddDays(1).AddMinutes(1), today.AddHours(23).AddMinutes(59), "Tomorrow is one day even only two minutes away");
+        DayCount(1, today.AddDays(1).AddHours(23).AddMinutes(59), today.AddMinutes(1), "Tomorrow is one day even nearly 48 hours away");
+        DayCount(2, today.AddDays(2).AddMinutes(1), today.AddHours(23).AddMinutes(59), "The day after tomorrow is two dates away, not rounded elapsed hours");
+        DayCount(1, today.AddDays(1).AddHours(18), today.AddDays(1).AddTicks(-1), "One day remains just before midnight");
+        DayCount(0, today.AddDays(1).AddHours(18), today.AddDays(1), "The calendar day count changes at midnight");
+        DayCount(0, today.AddHours(8), today.AddHours(9), "A departure earlier today stays at zero");
+        DayCount(0, today.AddDays(-1), today, "A past calendar date never becomes negative");
+        DayCount(1, new DateTime(2026, 11, 1, 0, 5, 0), new DateTime(2026, 10, 31, 23, 55, 0), "Calendar days cross a month boundary");
+        DayCount(1, new DateTime(2027, 1, 1, 0, 5, 0), new DateTime(2026, 12, 31, 23, 55, 0), "Calendar days cross a year boundary");
+        DayCount(2, new DateTime(2028, 3, 1), new DateTime(2028, 2, 28, 23, 0, 0), "Calendar day counting includes leap day");
+        DayCount(1, new DateTime(2026, 10, 4, 12, 0, 0), new DateTime(2026, 10, 3, 12, 0, 0), "Spring daylight saving does not change a calendar day");
+        DayCount(1, new DateTime(2027, 4, 4, 12, 0, 0), new DateTime(2027, 4, 3, 12, 0, 0), "Autumn daylight saving does not turn one calendar day into two");
+
+        DateTimeOffset beforeMidnight = CountdownCalculator.ToLocalOffset(new DateTime(2026, 12, 31, 23, 55, 0));
+        DateTimeOffset afterMidnight = CountdownCalculator.ToLocalOffset(new DateTime(2027, 1, 1, 0, 5, 0));
+        Equal(1L, CountdownCalculator.Remaining(afterMidnight.ToOffset(TimeSpan.FromHours(-12)),
+            beforeMidnight.ToOffset(TimeSpan.FromHours(14)), CountdownUnit.Days),
+            "Different timestamp offsets are normalized to the same local calendar");
+
+        AppSettings settings = new AppSettings { IsConfigured = true, TargetLocal = "2026-11-02T18:00:00", Unit = CountdownUnit.Days };
+        DateTimeOffset morning = CountdownCalculator.ToLocalOffset(today.AddHours(9));
+        DateTimeOffset target = CountdownCalculator.ToLocalTarget(settings.TargetLocal);
+        Equal(0L, CountdownCalculator.Remaining(target, morning, CountdownUnit.Days), "A same-day timer displays zero before departure");
+        Equal(9L, CountdownCalculator.Remaining(target, morning, CountdownUnit.Hours), "Hours still count actual time until departure");
+        False(ArrivalPolicy.ShouldShow(settings, morning), "Zero calendar days does not start the arrival celebration early");
+        True(ArrivalPolicy.ShouldShow(settings, target), "The arrival celebration still starts at the chosen time");
     }
 
     private static void WeekCountdownCases()

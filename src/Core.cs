@@ -194,8 +194,9 @@ namespace HolidayTimer
             switch (unit)
             {
                 case CountdownUnit.Days:
-                    count = remaining.TotalDays;
-                    break;
+                    // Dates are compared in the computer's local time zone,
+                    // independently of departure time or daylight-saving hours.
+                    return Math.Max(0L, (target.LocalDateTime.Date - now.LocalDateTime.Date).Days);
                 case CountdownUnit.Minutes:
                     count = remaining.TotalMinutes;
                     break;
