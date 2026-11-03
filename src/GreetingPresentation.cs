@@ -65,11 +65,11 @@ namespace HolidayTimer
             return bounds.ToArray();
         }
 
-        private void PresentGreetings(AppSettings settings, DateTime now, bool animate, bool dayZero = false, double elapsed = 0, bool reflow = false)
+        private void PresentGreetings(AppSettings settings, DateTime now, bool animate, int? starburstDays = null, double elapsed = 0, bool reflow = false)
         {
             Rectangle[] displays = GreetingDisplays();
             List<Window> prepared = new List<Window>();
-            DayZeroPlayback cinematic = dayZero ? new DayZeroPlayback(settings.AlwaysAnimateCelebrations, elapsed) : null;
+            DayZeroPlayback cinematic = starburstDays.HasValue ? new DayZeroPlayback(settings.AlwaysAnimateCelebrations, starburstDays.Value, elapsed) : null;
             bool committed = false;
             try
             {
@@ -81,7 +81,7 @@ namespace HolidayTimer
                     prepared.Add(window);
                     window.ShowActivated = false;
                     window.Opacity = 0;
-                    Themes.Apply(window, settings.Theme, settings.BackgroundOpacity, !dayZero && settings.LightAppearance, settings.CountdownTextColour);
+                    Themes.Apply(window, settings.Theme, settings.BackgroundOpacity, cinematic == null && settings.LightAppearance, settings.CountdownTextColour);
                     FontChoices.Apply(window, settings.DisplayFont);
                     if (cinematic == null) UpdateGreetingWindow(window, settings, now);
                     else cinematic.Prepare(window, displays[0], bounds, prepared.Count - 1);
@@ -93,7 +93,7 @@ namespace HolidayTimer
                     window.DpiChanged += delegate { QueueGreetingSize(window); };
                     window.Show();
                     Celebration.FullScreen(window, bounds);
-                    if (!dayZero) SizeGreeting(window, window.RenderSize);
+                    if (cinematic == null) SizeGreeting(window, window.RenderSize);
                     window.UpdateLayout();
                 }
 
@@ -109,7 +109,7 @@ namespace HolidayTimer
                     Window window = prepared[i];
                     CelebrationDismissal.Attach(window, i == 0 && desktopIntegration);
                     window.Opacity = 1;
-                    if (!dayZero)
+                    if (cinematic == null)
                     {
                         Celebration.Play(window, animate && desktopIntegration, settings.CelebrationEffect, settings.AlwaysAnimateCelebrations);
                         Motion.Attach(window, desktopIntegration);
@@ -155,7 +155,7 @@ namespace HolidayTimer
             // belong here, so hot-plug/DPI changes cannot consume either event.
             if (IsDayZeroOpen)
             {
-                PresentGreetings(greetingSettings, greetingNow, greetingAnimate, true, dayZeroPlayback.Seconds, true);
+                PresentGreetings(greetingSettings, greetingNow, greetingAnimate, dayZeroPlayback.DaysRemaining, dayZeroPlayback.Seconds, true);
                 return;
             }
             PresentGreetings(greetingSettings, greetingNow, greetingAnimate);

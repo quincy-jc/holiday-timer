@@ -27,7 +27,22 @@ namespace HolidayTimer
                 AppSettings draft; string error;
                 Check(app.ReadForm(form, false, out draft, out error) && !draft.DayZeroEnabled,
                     "The day-zero toggle can be disabled independently");
-                Layouts.Find<Button>(form, "PreviewDayZero").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                var sampleDay = Layouts.Find<ComboBox>(form, "StarburstPreviewDay");
+                Button play = Layouts.Find<Button>(form, "PreviewDayZero");
+                Check(sampleDay.SelectedIndex == 3 && sampleDay.Items.Count == 4,
+                    "The starburst preview offers three lead-in days and the event day");
+                for (int i = 0; i < 3; i++)
+                {
+                    sampleDay.SelectedIndex = i;
+                    play.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    int days = 3 - i;
+                    string caption = DayZeroScene.StageCaption(days), message = DayZeroScene.StageMessage(days);
+                    Check(app.Greeting.Title.Contains(caption) && app.Greeting.Title.Contains(message),
+                        "Preview opens the selected countdown day and its message");
+                    app.CloseGreetings();
+                }
+                sampleDay.SelectedIndex = 1;
+                play.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 Check(app.IsDayZeroOpen && app.GreetingWindows.Count == 2, "Day-zero preview fills both displays even when the automatic show is off");
                 foreach (Window window in app.GreetingWindows)
                     Check(!window.AllowsTransparency && ((SolidColorBrush)window.Background).Color == Colors.Black,
@@ -37,7 +52,8 @@ namespace HolidayTimer
                         "The starburst clock starts after both monitors present the ring");
                 double elapsed = app.DayZeroElapsed;
                 app.ReflowGreetings();
-                Check(app.IsDayZeroOpen && app.DayZeroElapsed >= elapsed, "Display changes preserve the reveal phase");
+                Check(app.IsDayZeroOpen && app.DayZeroElapsed >= elapsed && app.Greeting.Title.Contains("2 days to go"),
+                    "Display changes preserve the countdown day and reveal phase");
                 Window second = app.GreetingWindows[1];
                 second.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(second),
                     Environment.TickCount, Key.Escape) { RoutedEvent = Keyboard.PreviewKeyDownEvent });

@@ -24,7 +24,7 @@ namespace HolidayTimer
         private static readonly double[] JetDelay = { .03, .25, .46, .22, .69, .82, .60, .95, 1.04 };
         private static readonly double[] JetReach = { .80, .58, .74, .57, .36, .48, .70, .43, .51 };
         private static readonly double[] JetWidth = { 5, 4, 11, 3, 4, 3, 8, 3, 3 };
-        private const string Message = "Today is the day!";
+        private static readonly string[] Messages = { "Today is the day!", "One more sleep!", "Excited yet?", "Getting closer!" };
         private const int Shades = 20;
         private const int Tints = 4;
         private readonly Brush[,] inks = new Brush[Tints, Shades];
@@ -41,7 +41,8 @@ namespace HolidayTimer
         private readonly DrawingGroup titleDrawing = new DrawingGroup();
         private double lastFieldFrame = -1;
         private readonly Star[] rays = new Star[1400];
-        private BitmapSource ringBody, ringDust, titleImage;
+        private BitmapSource ringBody, ringDust, titleImage, ringNumber;
+        private DrawingImage stageCaption;
         private FlareStamp flareFan, jetStamp, warmGlow, whiteGlow;
         private BitmapSource deepSky;
         private readonly GalaxySprite[] galaxies = new GalaxySprite[4];
@@ -96,11 +97,29 @@ namespace HolidayTimer
             RenderOptions.SetBitmapScalingMode(fieldDrawing, BitmapScalingMode.NearestNeighbor);
             RenderOptions.SetBitmapScalingMode(titleDrawing, BitmapScalingMode.NearestNeighbor);
             Focusable = false;
-            AutomationProperties.SetName(this, Message);
+            AutomationProperties.SetName(this, StageMessage(0));
+        }
+
+        internal static string StageMessage(int daysRemaining)
+        {
+            if (daysRemaining < 0 || daysRemaining >= Messages.Length) throw new ArgumentOutOfRangeException("daysRemaining");
+            return Messages[daysRemaining];
+        }
+
+        internal static string StageCaption(int daysRemaining)
+        {
+            if (daysRemaining < 0 || daysRemaining >= Messages.Length) throw new ArgumentOutOfRangeException("daysRemaining");
+            if (daysRemaining == 0) return String.Empty;
+            return daysRemaining.ToString(CultureInfo.CurrentCulture) + (daysRemaining == 1 ? " day to go" : " days to go");
         }
 
         internal void Configure(bool primary, int seed, Color accent)
+        { Configure(primary, seed, accent, 0); }
+
+        internal void Configure(bool primary, int seed, Color accent, int daysRemaining)
         {
+            string message = StageMessage(daysRemaining), caption = StageCaption(daysRemaining);
+            AutomationProperties.SetName(this, daysRemaining == 0 ? message : caption + ". " + message);
             this.primary = primary;
             palette[0] = Mix(Color.FromRgb(182, 206, 236), accent, .23);
             palette[1] = Mix(Color.FromRgb(255, 210, 150), accent, .22);
@@ -141,7 +160,10 @@ namespace HolidayTimer
             if (primary)
             {
                 ringBody = CreateRing(random, false); ringDust = CreateRing(random, true);
-                CreateTitle(random);
+                titleImage = CreateLettering(message, random, true);
+                ringNumber = daysRemaining > 0 ? CreateLettering(daysRemaining.ToString(CultureInfo.InvariantCulture),
+                    new Random(seed ^ 52743), false) : null;
+                stageCaption = daysRemaining > 0 ? CreateCaption(caption, palette[2]) : null;
                 flareFan = CreateFlareFan(); jetStamp = CreateJet();
                 warmGlow = CreateFlareGlow(palette[1]); whiteGlow = CreateFlareGlow(palette[3]);
             }
@@ -250,6 +272,13 @@ namespace HolidayTimer
             dc.PushTransform(new RotateTransform(Math.Sin(t * .35) * -3.3, center.X, center.Y));
             DrawCentered(dc, ringDust, center, size * (1.008 + beat * .039));
             dc.Pop(); dc.Pop();
+            if (ringNumber != null && t < 6.35)
+            {
+                double height = size * .32, width = height * ringNumber.PixelWidth / ringNumber.PixelHeight;
+                dc.PushOpacity(1 - Ease((t - 5.15) / 1.20));
+                dc.DrawImage(ringNumber, new Rect(center.X - width * .5, center.Y - height * .5, width, height));
+                dc.Pop();
+            }
         }
 
         // Warm these premultiplied textures when the scene is configured, then
@@ -812,6 +841,17 @@ namespace HolidayTimer
             double left = (w - titleImage.PixelWidth * size) / 2;
             double top = (h - titleImage.PixelHeight * size) / 2;
             Rect bounds = new Rect(left, top, titleImage.PixelWidth * size, titleImage.PixelHeight * size);
+            if (stageCaption != null)
+            {
+                double opacity = Ease((t - TitleStart - .55) / 1.4);
+                if (opacity > 0)
+                {
+                    dc.PushOpacity(opacity);
+                    dc.DrawImage(stageCaption, new Rect((w - stageCaption.Width) * .5, top - stageCaption.Height - 15,
+                        stageCaption.Width, stageCaption.Height));
+                    dc.Pop();
+                }
+            }
             bool moving = UpdateTitleDust(w, bounds, size, t);
             double settled = Ease((t - TitleStart - 2.15) / 1.85);
             if (settled > 0)
@@ -949,21 +989,37 @@ namespace HolidayTimer
             return Image(pixels, side, side);
         }
 
-        // Flatten the typeset outlines once and scan their inside intervals.
-        // Every grain belongs to exactly one tile. Unbrushed tiles reuse their
-        // resting image; a brushed tile is redrawn from those same grains.
-        private void CreateTitle(Random random)
+        private static DrawingImage CreateCaption(string text, Color accent)
         {
-            FormattedText label = new FormattedText(Message, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+            var drawing = new DrawingGroup();
+            var brush = new SolidColorBrush(Mix(Color.FromRgb(169, 182, 204), accent, .21));
+            brush.Freeze();
+            var textRun = new FormattedText(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
+                new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Medium, FontStretches.Normal),
+                22, brush, 1);
+            using (DrawingContext dc = drawing.Open()) dc.DrawText(textRun, new Point());
+            var image = new DrawingImage(drawing);
+            image.Freeze();
+            return image;
+        }
+
+        // Sample the typeset outline once. Interactive lettering keeps its grains
+        // by tile; the opening numeral needs just its static particle image.
+        private BitmapSource CreateLettering(string text, Random random, bool interactive)
+        {
+            FormattedText label = new FormattedText(text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
                 new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal),
                 125, Brushes.White, 1);
             PathGeometry glyphs = label.BuildGeometry(new Point()).GetFlattenedPathGeometry(.23, ToleranceType.Absolute);
             Rect bounds = glyphs.Bounds;
             int width = (int)Math.Ceiling(bounds.Width) + 10, height = (int)Math.Ceiling(bounds.Height) + 10;
             byte[] pixels = new byte[width * height * 4];
-            titleTiles = new TitleTile[(width + TileWidth - 1) / TileWidth];
-            for (int i = 0; i < titleTiles.Length; i++)
-                titleTiles[i] = new TitleTile { X = i * TileWidth, Width = Math.Min(TileWidth, width - i * TileWidth) };
+            if (interactive)
+            {
+                titleTiles = new TitleTile[(width + TileWidth - 1) / TileWidth];
+                for (int i = 0; i < titleTiles.Length; i++)
+                    titleTiles[i] = new TitleTile { X = i * TileWidth, Width = Math.Min(TileWidth, width - i * TileWidth) };
+            }
             List<Point[]> contours = new List<Point[]>();
             foreach (PathFigure figure in glyphs.Figures)
             {
@@ -1000,13 +1056,16 @@ namespace HolidayTimer
                         int tint = random.Next(4); double weight = .68 + random.NextDouble() * .60;
                         double light = .64 + random.NextDouble() * .36;
                         Splat(pixels, width, height, tx, ty, weight, palette[tint], light);
+                        if (!interactive) continue;
                         if (random.NextDouble() < .41) incoming.Add(grains.Count);
                         titleTiles[(int)tx / TileWidth].Grains.Add(grains.Count);
                         grains.Add(new TitleGrain { X = tx, Y = ty, Theta = random.NextDouble() * Tau,
                             Reach = 35 + random.NextDouble() * 165, Delay = random.NextDouble(), Tint = tint, Weight = weight, Light = light });
                     }
             }
-            titleImage = Image(pixels, width, height); titleGrains = grains.ToArray();
+            BitmapSource image = Image(pixels, width, height);
+            if (!interactive) return image;
+            titleGrains = grains.ToArray();
             incomingGrains = incoming.ToArray();
             foreach (TitleTile tile in titleTiles)
             {
@@ -1020,6 +1079,7 @@ namespace HolidayTimer
                 tile.Rest = Image(resting, tileWidth, tileHeight);
             }
             grainOffsets = new Point[titleGrains.Length]; lastTitleFrame = -1;
+            return image;
         }
 
         private static void Splat(byte[] pixels, int w, int h, double x, double y, double radius, Color color, double light)

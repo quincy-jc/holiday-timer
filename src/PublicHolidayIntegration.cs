@@ -28,7 +28,7 @@ namespace HolidayTimer
 
         private bool KeepTodayForCelebration(DateTime now)
         {
-            if (DayZeroPolicy.Pending(Settings, now)) return true;
+            if (DayZeroPolicy.PendingDays(Settings, now) == 0) return true;
             // A calendar countdown still owes its regular arrival, as does a
             // custom countdown whose earlier Day Zero reveal has been dismissed.
             bool hadCustomReveal = Settings.IsConfigured && Settings.DayZeroEnabled &&

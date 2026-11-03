@@ -188,8 +188,8 @@
                   <TextBlock Text="Make the moment yours" FontWeight="SemiBold" FontSize="18" Foreground="{DynamicResource Heading}" Margin="0,0,0,8"/>
                   <CheckBox x:Name="StartAtLogin" Content="Launch when I _sign in"/><CheckBox x:Name="MorningGreeting" Content="Celebrate each _morning"/>
                   <TextBlock Text="A fullscreen celebration, once between 5 am and noon." Foreground="{DynamicResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="44,3,0,0"/>
-                  <CheckBox x:Name="DayZeroEnabled" Content="Show the Day _Zero starburst" Margin="0,8,0,0"/>
-                  <TextBlock Text="Once when you sign in or unlock on the date of a custom countdown. NSW calendar holidays use the regular celebration." Foreground="{DynamicResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="44,3,0,0"/>
+                  <CheckBox x:Name="DayZeroEnabled" Content="Show the countdown star_burst" Margin="0,8,0,0"/>
+                  <TextBlock Text="Once a day at sign-in or unlock, from 3 days before your custom event through the day itself." Foreground="{DynamicResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="44,3,0,0"/>
                   <StackPanel Margin="0,18,0,0">
                     <Label Content="Celebration _effect" Target="{Binding ElementName=CelebrationStyle}"/><ComboBox x:Name="CelebrationStyle" AutomationProperties.Name="Celebration effect"><ComboBoxItem Content="Fireworks + confetti"/><ComboBoxItem Content="Flowers + confetti"/></ComboBox>
                     <TextBlock x:Name="CelebrationDescription" Text="Layered fireworks with glowing trails and falling confetti. Plays until you dismiss it." Foreground="{DynamicResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0"/>
@@ -199,7 +199,12 @@
                   <TextBlock x:Name="CelebrationMotionStatus" Foreground="{DynamicResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="44,3,0,0" AutomationProperties.LiveSetting="Polite"/>
                   <WrapPanel Margin="0,12,0,0">
                     <Button x:Name="PreviewGreeting" Content="Preview celebration" Padding="12,8" Margin="0,0,8,4" FontSize="12" AutomationProperties.Name="Preview celebration"/>
-                    <Button x:Name="PreviewDayZero" Content="Preview Day Zero" Padding="12,8" Margin="0,0,0,4" FontSize="12" AutomationProperties.Name="Preview the Day Zero starburst on all screens"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                      <ComboBox x:Name="StarburstPreviewDay" Width="124" SelectedIndex="3" ToolTip="Choose a day to preview" AutomationProperties.Name="Day to preview">
+                        <ComboBoxItem Content="3 days to go"/><ComboBoxItem Content="2 days to go"/><ComboBoxItem Content="1 day to go"/><ComboBoxItem Content="Event day"/>
+                      </ComboBox>
+                      <Button x:Name="PreviewDayZero" Content="Preview starburst" Padding="12,8" Margin="6,0,0,0" FontSize="12" AutomationProperties.Name="Preview the selected day's starburst on all screens"/>
+                    </StackPanel>
                   </WrapPanel>
                 </StackPanel>
               </TabItem>

@@ -21,7 +21,8 @@ namespace HolidayTimer
             {
                 AppSettings preview = new AppSettings { Theme = (HolidayTheme)Layouts.Find<ComboBox>(form, "ColourScheme").SelectedIndex,
                     AlwaysAnimateCelebrations = Layouts.Find<CheckBox>(form, "AlwaysAnimateCelebrations").IsChecked == true };
-                ShowDayZero(preview);
+                ComboBox sample = Layouts.Find<ComboBox>(form, "StarburstPreviewDay");
+                ShowDayZero(preview, 3 - sample.SelectedIndex);
             };
             Layouts.Find<ComboBox>(form, "CelebrationStyle").SelectionChanged += delegate { UpdateCelebrationDescription(form); };
             CheckBox alwaysAnimate = Layouts.Find<CheckBox>(form, "AlwaysAnimateCelebrations");

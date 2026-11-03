@@ -9,6 +9,10 @@ namespace HolidayTimer
         private bool dayZeroSessionPending, dayZeroOpening;
         private DateTime dayZeroRetryAfter;
         private string automaticDayZeroTarget;
+        private int automaticDayZeroDays;
+
+        private bool IsActiveLeadIn
+        { get { return IsDayZeroOpen && automaticDayZeroTarget == Settings.TargetLocal && automaticDayZeroDays > 0; } }
 
         internal void ArmDayZeroSession() { dayZeroSessionPending = true; dayZeroRetryAfter = DateTime.MinValue; }
         private void ClearAutomaticDayZero() { automaticDayZeroTarget = null; }
@@ -20,16 +24,18 @@ namespace HolidayTimer
             {
                 if (!SessionAvailable || (desktopIntegration && !DesktopSession.IsUnlocked())) return;
                 if (ReconcilePendingPublicHolidays(now)) RefreshCountdown();
-                if (DayZeroPolicy.Pending(Settings, now))
+                int? days = DayZeroPolicy.PendingDays(Settings, now);
+                if (days.HasValue)
                 {
-                    // A startup/unlock while editing or previewing remains pending until dismissal.
-                    if (SettingsWindow != null || IsDayZeroOpen || now < dayZeroRetryAfter) return;
-                    ShowScheduledDayZero(now);
+                    // A manual preview stays under user control. A previous day's
+                    // automatic scene can be replaced at the next unlock.
+                    if (SettingsWindow != null || (IsDayZeroOpen && automaticDayZeroTarget == null) || now < dayZeroRetryAfter) return;
+                    ShowScheduledDayZero(now, days.Value);
                     return;
                 }
                 dayZeroSessionPending = false;
             }
-            if (IsDayZeroOpen)
+            if (IsDayZeroOpen && !IsActiveLeadIn)
             {
                 // Only a scheduled scene can also satisfy an arrival that occurs
                 // during it. A manual preview never consumes the real celebration.
@@ -44,20 +50,21 @@ namespace HolidayTimer
             if (EnsurePublicHolidayFallback(now) || updated) RefreshCountdown();
         }
 
-        private void ShowScheduledDayZero(DateTime now)
+        private void ShowScheduledDayZero(DateTime now, int days)
         {
             dayZeroSessionPending = false;
             dayZeroOpening = true;
             try
             {
-                try { ShowDayZero(Settings); }
+                try { ShowDayZero(Settings, days); }
                 catch (DisplayUnavailableException) { RetryDayZero(now); return; }
                 catch (System.ComponentModel.Win32Exception) { RetryDayZero(now); return; }
                 automaticDayZeroTarget = Settings.TargetLocal;
+                automaticDayZeroDays = days;
                 string day = now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
                 Settings.LastDayZeroDate = day;
                 Settings.LastGreetingDate = day;
-                if (ArrivalPolicy.ShouldShow(Settings, CountdownCalculator.ToLocalOffset(now)))
+                if (days == 0 && ArrivalPolicy.ShouldShow(Settings, CountdownCalculator.ToLocalOffset(now)))
                     Settings.LastArrivalTarget = Settings.TargetLocal;
                 SaveQuietly();
             }
@@ -73,7 +80,7 @@ namespace HolidayTimer
 
         internal bool CheckArrival(DateTime now)
         {
-            if (quitting || arrivalOpening || IsDayZeroOpen || !SessionAvailable ||
+            if (quitting || arrivalOpening || (IsDayZeroOpen && !IsActiveLeadIn) || !SessionAvailable ||
                 !ArrivalPolicy.ShouldShow(Settings, CountdownCalculator.ToLocalOffset(now)) ||
                 (desktopIntegration && !DesktopSession.IsUnlocked())) return false;
 

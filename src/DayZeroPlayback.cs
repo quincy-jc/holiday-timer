@@ -29,9 +29,9 @@ namespace HolidayTimer
         internal bool IsDayZeroOpen { get { return dayZeroPlayback != null; } }
         internal double DayZeroElapsed { get { return dayZeroPlayback == null ? 0 : dayZeroPlayback.Seconds; } }
 
-        private void ShowDayZero(AppSettings settings)
+        private void ShowDayZero(AppSettings settings, int daysRemaining = 0)
         {
-            PresentGreetings(settings, DateTime.Now, true, true);
+            PresentGreetings(settings, DateTime.Now, true, daysRemaining);
         }
     }
 
@@ -45,14 +45,18 @@ namespace HolidayTimer
         private bool active, rendering;
         private bool sentPointerFrame;
         private TimeSpan? previousFrame;
+        internal int DaysRemaining { get; private set; }
         internal double Seconds { get; private set; }
 
-        internal DayZeroPlayback(bool alwaysAnimate, double elapsed)
-        { this.alwaysAnimate = alwaysAnimate; Seconds = elapsed; }
+        internal DayZeroPlayback(bool alwaysAnimate, int daysRemaining, double elapsed)
+        { this.alwaysAnimate = alwaysAnimate; DaysRemaining = daysRemaining; Seconds = elapsed; }
 
         internal void Prepare(Window window, Rectangle main, Rectangle bounds, int index)
         {
-            window.Title = "Today is the day! — Holiday Timer";
+            string message = DayZeroScene.StageMessage(DaysRemaining);
+            string count = DayZeroScene.StageCaption(DaysRemaining);
+            string description = count.Length == 0 ? message : count + " · " + message;
+            window.Title = description + " — Holiday Timer";
             window.AllowsTransparency = false;
             window.Background = Brushes.Black;
             Grid root = (Grid)window.Content;
@@ -62,15 +66,15 @@ namespace HolidayTimer
             dismiss.Margin = new Thickness(0, 0, 0, 16);
             DayZeroScene scene = new DayZeroScene();
             Color accent = ((SolidColorBrush)window.Resources["Accent"]).Color;
-            scene.Configure(index == 0, 419 + index * 113, accent);
+            scene.Configure(index == 0, 419 + index * 113, accent, DaysRemaining);
             scene.SetOrigin(new Point((main.Left + main.Width * .5 - bounds.Left) / bounds.Width,
                 (main.Top + main.Height * .5 - bounds.Top) / bounds.Height));
-            AutomationProperties.SetName(scene, "Today is the day!");
+            AutomationProperties.SetName(scene, description);
             root.Children.Insert(0, scene);
             scenes.Add(scene);
             if (index == 0)
             {
-                staticMessage = new TextBlock { Text = "Today is the day!", Foreground = Brushes.White,
+                staticMessage = new TextBlock { Text = count.Length == 0 ? message : count + "\n" + message, Foreground = Brushes.White,
                     FontSize = 42, FontWeight = FontWeights.SemiBold, TextAlignment = TextAlignment.Center,
                     TextWrapping = TextWrapping.Wrap, HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };

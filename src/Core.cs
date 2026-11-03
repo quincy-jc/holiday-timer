@@ -251,14 +251,18 @@ namespace HolidayTimer
 
     internal static class DayZeroPolicy
     {
-        internal static bool Pending(AppSettings settings, DateTime localNow)
+        internal static int? PendingDays(AppSettings settings, DateTime localNow)
         {
-            if (settings == null || !settings.IsConfigured || !settings.DayZeroEnabled || settings.IsPublicHolidayCountdown) return false;
+            if (settings == null || !settings.IsConfigured || !settings.DayZeroEnabled || settings.IsPublicHolidayCountdown) return null;
             string day = localNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-            if (settings.LastDayZeroDate == day) return false;
-            try { return CountdownCalculator.ToLocalTarget(settings.TargetLocal).Date == localNow.Date; }
-            catch (FormatException) { return false; }
-            catch (ArgumentException) { return false; }
+            if (settings.LastDayZeroDate == day) return null;
+            try
+            {
+                int days = (CountdownCalculator.ToLocalTarget(settings.TargetLocal).Date - localNow.Date).Days;
+                return days >= 0 && days <= 3 ? (int?)days : null;
+            }
+            catch (FormatException) { return null; }
+            catch (ArgumentException) { return null; }
         }
     }
 

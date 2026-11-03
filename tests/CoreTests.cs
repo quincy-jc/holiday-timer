@@ -352,21 +352,23 @@ internal static class CoreTests
         File.WriteAllText(store.FilePath, "{\"IsConfigured\":true,\"MorningGreeting\":false,\"TargetLocal\":\"2026-11-03T18:30:00\"}");
         DateTime day = new DateTime(2026, 11, 3);
         AppSettings settings = store.Load();
-        True(DayZeroPolicy.Pending(settings, day), "An existing event qualifies on its local date starting at midnight");
-        True(DayZeroPolicy.Pending(settings, day.AddHours(23)), "A late sign-in can still see today's scene after the event");
-        False(DayZeroPolicy.Pending(settings, day.AddTicks(-1)), "No day-zero reveal on the night before");
-        False(DayZeroPolicy.Pending(settings, day.AddDays(1)), "No stale reveal the next morning");
+        for (int i = 3; i >= 0; i--)
+            Equal<int?>(i, DayZeroPolicy.PendingDays(settings, day.AddDays(-i)), "The last four local dates have distinct stages");
+        Equal<int?>(0, DayZeroPolicy.PendingDays(settings, day.AddHours(23)), "A late sign-in can still see today's scene after the event");
+        Equal<int?>(1, DayZeroPolicy.PendingDays(settings, day.AddTicks(-1)), "The day before stays at one right up to midnight");
+        Equal<int?>(null, DayZeroPolicy.PendingDays(settings, day.AddDays(-3).AddTicks(-1)), "No reveal four days before the event");
+        Equal<int?>(null, DayZeroPolicy.PendingDays(settings, day.AddDays(1)), "No stale reveal the next morning");
         settings.LastDayZeroDate = "2026-11-03";
         settings.TargetLocal = "2026-11-03T21:45:00";
         store.Save(settings);
-        False(DayZeroPolicy.Pending(store.Load(), day), "Restart or a time edit on the same day cannot replay it");
+        Equal<int?>(null, DayZeroPolicy.PendingDays(store.Load(), day), "Restart or a time edit on the same day cannot replay it");
         settings.TargetLocal = "2026-11-04T09:00:00";
-        True(DayZeroPolicy.Pending(settings, day.AddDays(1)), "A newly selected holiday date has its own reveal");
+        Equal<int?>(0, DayZeroPolicy.PendingDays(settings, day.AddDays(1)), "A newly selected holiday date has its own reveal");
         settings.DayZeroEnabled = false;
         store.Save(settings);
-        False(DayZeroPolicy.Pending(store.Load(), day.AddDays(1)), "The user's opt-out survives a restart");
+        Equal<int?>(null, DayZeroPolicy.PendingDays(store.Load(), day.AddDays(1)), "The user's opt-out survives a restart");
         settings.DayZeroEnabled = true; settings.IsConfigured = false;
-        False(DayZeroPolicy.Pending(settings, day.AddDays(1)), "An unsaved first-run default cannot interrupt the desktop");
+        Equal<int?>(null, DayZeroPolicy.PendingDays(settings, day.AddDays(1)), "An unsaved first-run default cannot interrupt the desktop");
 
         DateTime christmas = new DateTime(2026, 12, 25);
         settings.IsConfigured = true;
@@ -374,14 +376,18 @@ internal static class CoreTests
         settings.TargetLocal = christmas.ToString(CountdownCalculator.TargetFormat, CultureInfo.InvariantCulture);
         settings.AutomaticPublicHoliday = true;
         store.Save(settings);
-        False(DayZeroPolicy.Pending(store.Load(), christmas), "An automatically loaded holiday skips Day Zero even without a calendar key");
+        for (int i = 0; i <= 3; i++)
+            Equal<int?>(null, DayZeroPolicy.PendingDays(store.Load(), christmas.AddDays(-i)), "An automatic holiday skips all four stages even without a calendar key");
         settings.AutomaticPublicHoliday = false;
         settings.PublicHolidayKey = "christmas-day-2026";
         store.Save(settings);
-        False(DayZeroPolicy.Pending(store.Load(), christmas), "Choosing an NSW entry and saving it keeps Day Zero off for that event");
+        for (int i = 0; i <= 3; i++)
+            Equal<int?>(null, DayZeroPolicy.PendingDays(store.Load(), christmas.AddDays(-i)), "A selected NSW holiday skips all four stages");
         settings.PublicHolidayKey = null;
         store.Save(settings);
-        True(DayZeroPolicy.Pending(store.Load(), christmas), "A custom event on the same date can show Day Zero even with the same name");
+        Equal<int?>(0, DayZeroPolicy.PendingDays(store.Load(), christmas), "A custom event on the same date can show Day Zero even with the same name");
+        settings.Unit = CountdownUnit.Hours; settings.WorkdayCountdown = true;
+        Equal<int?>(3, DayZeroPolicy.PendingDays(settings, christmas.AddDays(-3).AddHours(23)), "Lead-ins use local dates in all units and in workday mode");
     }
 
     private static void PersistenceCases(string testDirectory)

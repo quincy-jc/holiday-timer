@@ -141,8 +141,22 @@ namespace HolidayTimer
             DateTime signIn = target.Date.AddHours(7);
             app.Settings = ArrivalSettings(target); app.Settings.DayZeroEnabled = true; app.Settings.MorningGreeting = true;
             store.Save(app.Settings);
+            DateTime threeDays = signIn.AddDays(-3);
+            app.ProcessCelebrations(threeDays.Date);
+            Check(app.Greeting == null, "Crossing midnight into the three-day window alone does not take over the desktop");
+            app.ArmDayZeroSession(); app.ProcessCelebrations(threeDays);
+            Check(app.IsDayZeroOpen && app.Greeting.Title.StartsWith(DayZeroScene.StageCaption(3) + " · " + DayZeroScene.StageMessage(3)) &&
+                store.Load().LastArrivalTarget == null, "Three days before, an unlock shows the three-day message and leaves arrival pending");
+            app.CloseGreetings(); app.Settings = store.Load(); app.ArmDayZeroSession(); app.ProcessCelebrations(threeDays.AddHours(1));
+            Check(app.Greeting == null, "Restarting on the same lead-in date does not repeat the scene or a morning greeting");
+            // The user is away for day two. Redispatch only the current stage.
+            app.ArmDayZeroSession(); app.ProcessCelebrations(signIn.AddDays(-1));
+            Check(app.IsDayZeroOpen && app.Greeting.Title.StartsWith(DayZeroScene.StageCaption(1) + " · " + DayZeroScene.StageMessage(1)) &&
+                store.Load().LastArrivalTarget == null, "Returning the day before skips the missed message and shows only one day");
+            app.CloseGreetings();
             app.SessionAvailable = false; app.ArmDayZeroSession(); app.ProcessCelebrations(signIn);
-            Check(!app.IsDayZeroOpen && store.Load().LastDayZeroDate == null,
+            string previousDate = signIn.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            Check(!app.IsDayZeroOpen && store.Load().LastDayZeroDate == previousDate,
                 "A locked desktop preserves the first-visible opportunity");
             var readyDisplays = app.GreetingScreenBoundsProvider;
             app.SessionAvailable = true;
@@ -150,7 +164,7 @@ namespace HolidayTimer
             try
             {
                 app.ProcessCelebrations(signIn);
-                Check(!app.IsDayZeroOpen && store.Load().LastDayZeroDate == null,
+                Check(!app.IsDayZeroOpen && store.Load().LastDayZeroDate == previousDate,
                     "A delayed display at sign-in keeps the reveal pending");
             }
             finally { app.GreetingScreenBoundsProvider = readyDisplays; }
@@ -184,6 +198,19 @@ namespace HolidayTimer
             Check(active != null && app.Greeting == active && app.IsDayZeroOpen &&
                 store.Load().LastArrivalTarget == app.Settings.TargetLocal,
                 "A target reached during the automatic reveal uses that same presentation");
+            app.CloseGreetings();
+
+            target = target.AddDays(4); app.Settings = ArrivalSettings(target); app.Settings.DayZeroEnabled = true; store.Save(app.Settings);
+            app.ArmDayZeroSession(); app.ProcessCelebrations(target.AddDays(-2));
+            Check(app.IsDayZeroOpen && app.Greeting.Title.StartsWith(DayZeroScene.StageCaption(2) + " · " + DayZeroScene.StageMessage(2)),
+                "The second day has its own countdown and message");
+            Window prior = app.Greeting;
+            app.ArmDayZeroSession(); app.ProcessCelebrations(target.AddDays(-1));
+            Check(app.IsDayZeroOpen && !prior.IsVisible && app.Greeting.Title.StartsWith(DayZeroScene.StageCaption(1) + " · " + DayZeroScene.StageMessage(1)),
+                "An unlock on a later date replaces a previous date's open lead-in");
+            app.ProcessCelebrations(target);
+            Check(!app.IsDayZeroOpen && app.Greeting != null && store.Load().LastArrivalTarget == app.Settings.TargetLocal,
+                "An open lead-in cannot consume or hide the actual arrival celebration");
             app.CloseGreetings();
         }
     }

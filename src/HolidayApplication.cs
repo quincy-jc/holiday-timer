@@ -556,7 +556,7 @@ namespace HolidayTimer
 
         internal bool CheckMorning(DateTime now)
         {
-            if (quitting || !SessionAvailable || !MorningPolicy.ShouldShow(Settings, now) || DayZeroPolicy.Pending(Settings, now) ||
+            if (quitting || !SessionAvailable || !MorningPolicy.ShouldShow(Settings, now) || DayZeroPolicy.PendingDays(Settings, now).HasValue ||
                 SettingsWindow != null || Greeting != null || IsDayZeroOpen ||
                 (desktopIntegration && !DesktopSession.IsUnlocked())) return false;
             // Mark before opening so an unlock and a timer tick cannot open duplicate greetings.
