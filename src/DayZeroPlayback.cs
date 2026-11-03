@@ -43,6 +43,7 @@ namespace HolidayTimer
         private TextBlock staticMessage;
         private int presented;
         private bool active, rendering;
+        private bool sentPointerFrame;
         private TimeSpan? previousFrame;
         internal double Seconds { get; private set; }
 
@@ -103,6 +104,7 @@ namespace HolidayTimer
             {
                 rendering = motion;
                 previousFrame = null;
+                sentPointerFrame = false;
                 if (motion) CompositionTarget.Rendering += Render;
                 else CompositionTarget.Rendering -= Render;
             }
@@ -120,10 +122,24 @@ namespace HolidayTimer
             TimeSpan now = ((RenderingEventArgs)args).RenderingTime;
             if (!previousFrame.HasValue || now < previousFrame.Value) { previousFrame = now; return; }
             double delta = (now - previousFrame.Value).TotalSeconds;
-            if (delta < 1.0 / 32) return;
-            // A delayed desktop frame should hold the opening, not skip the entire reveal.
-            Seconds += Math.Min(delta, .1);
+            if (delta < 1.0 / 32)
+            {
+                // Consume the latest mouse position at the next display frame.
+                // Other monitors stay on the shared animation cadence.
+                if (!sentPointerFrame && delta >= 1.0 / 65)
+                    foreach (DayZeroScene scene in scenes)
+                        if (scene.NeedsPointerFrame)
+                        {
+                            scene.SetFrame(Seconds + delta, false);
+                            sentPointerFrame = true;
+                        }
+                return;
+            }
+            // Hold the sign-in opening through long stalls. Once the ring has
+            // completed, ordinary slow frames should not stretch the burst.
+            Seconds += Math.Min(delta, Seconds < 5 ? .1 : .25);
             previousFrame = now;
+            sentPointerFrame = false;
             foreach (DayZeroScene scene in scenes) scene.SetFrame(Seconds, false);
         }
 

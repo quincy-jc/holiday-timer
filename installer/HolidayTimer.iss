@@ -5,7 +5,7 @@
 #ifndef SetupOutputDir
   #define SetupOutputDir "..\dist\setup"
 #endif
-#define AppVersion "1.10.1"
+#define AppVersion "1.10.2"
 #ifdef IsolationTest
   #ifdef PreviousVersion
     #undef AppVersion

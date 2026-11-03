@@ -28,16 +28,21 @@ namespace HolidayTimer
         private const int Shades = 20;
         private const int Tints = 4;
         private readonly Brush[,] inks = new Brush[Tints, Shades];
-        private readonly Pen[,,] lines = new Pen[Tints, Shades, 4];
-        private readonly Brush[] bloom = new Brush[Tints];
+        private readonly Pen[,] emberPens = new Pen[Tints, Shades];
         private readonly Color[] palette = new Color[Tints];
         private const int ForegroundStars = 630;
         private const int FieldStarCount = 1450;
         private readonly Star[] stars = new Star[FieldStarCount];
         private readonly Vector[] fieldOffsets = new Vector[FieldStarCount];
+        private WriteableBitmap fieldImage;
+        private byte[] fieldPixels;
+        private BitmapSource sizedSky;
+        private readonly DrawingGroup fieldDrawing = new DrawingGroup();
+        private readonly DrawingGroup titleDrawing = new DrawingGroup();
         private double lastFieldFrame = -1;
         private readonly Star[] rays = new Star[1400];
-        private BitmapSource ringBody, ringDust, titleImage, flareFan;
+        private BitmapSource ringBody, ringDust, titleImage;
+        private FlareStamp flareFan, jetStamp, warmGlow, whiteGlow;
         private BitmapSource deepSky;
         private readonly GalaxySprite[] galaxies = new GalaxySprite[4];
         private TitleTile[] titleTiles;
@@ -45,11 +50,14 @@ namespace HolidayTimer
         private Point[] grainOffsets;
         private const int TileWidth = 54;
         private double lastTitleFrame = -1;
-        private BitmapSource jetStamp;
+        private WriteableBitmap rayLayer;
+        private DrawingGroup burstDrawing;
+        private byte[] rayPixels;
         private TitleGrain[] titleGrains;
         private bool primary = true, still, configured;
         private Point origin = new Point(.5, .5);
         private Point? pointer;
+        private bool pointerChanged;
         private double seconds;
 
         private struct Star
@@ -67,6 +75,7 @@ namespace HolidayTimer
         private struct GalaxySprite
         {
             internal BitmapSource Image;
+            internal BitmapSource Scaled;
             internal Rect Bounds;
         }
 
@@ -76,6 +85,7 @@ namespace HolidayTimer
             internal readonly List<int> Grains = new List<int>();
             internal BitmapSource Rest;
             internal bool Displaced;
+            internal double MotionScale;
             internal WriteableBitmap Motion;
             internal byte[] Pixels;
         }
@@ -83,6 +93,8 @@ namespace HolidayTimer
         internal DayZeroScene()
         {
             ClipToBounds = true;
+            RenderOptions.SetBitmapScalingMode(fieldDrawing, BitmapScalingMode.NearestNeighbor);
+            RenderOptions.SetBitmapScalingMode(titleDrawing, BitmapScalingMode.NearestNeighbor);
             Focusable = false;
             AutomationProperties.SetName(this, Message);
         }
@@ -96,16 +108,12 @@ namespace HolidayTimer
             palette[3] = Color.FromRgb(255, 251, 240);
             for (int k = 0; k < Tints; k++)
             {
-                bloom[k] = Halo(palette[k]);
                 for (int a = 0; a < Shades; a++)
                 {
                     Color c = palette[k]; c.A = (byte)(255 * a / (Shades - 1));
                     Brush brush = new SolidColorBrush(c); brush.Freeze(); inks[k, a] = brush;
-                    for (int s = 0; s < 4; s++)
-                    {
-                        Pen pen = new Pen(brush, .65 + s * s * .54);
-                        pen.Freeze(); lines[k, a, s] = pen;
-                    }
+                    Pen pen = new Pen(brush, .65);
+                    pen.Freeze(); emberPens[k, a] = pen;
                 }
             }
             Random random = new Random(seed);
@@ -129,11 +137,13 @@ namespace HolidayTimer
                     Tint = raySeed.Next(Tints) };
             }
             deepSky = CreateDeepSky(seed);
+            sizedSky = null;
             if (primary)
             {
                 ringBody = CreateRing(random, false); ringDust = CreateRing(random, true);
                 CreateTitle(random);
-                flareFan = CreateFlareFan();
+                flareFan = CreateFlareFan(); jetStamp = CreateJet();
+                warmGlow = CreateFlareGlow(palette[1]); whiteGlow = CreateFlareGlow(palette[3]);
             }
             configured = true;
             InvalidateVisual();
@@ -145,16 +155,50 @@ namespace HolidayTimer
             InvalidateVisual();
         }
 
+        protected override void OnRenderSizeChanged(SizeChangedInfo change)
+        {
+            base.OnRenderSizeChanged(change);
+            PrepareRaySurface(change.NewSize);
+            // Prepare size-dependent textures before the opening is presented.
+            if (!configured || ActualWidth < 1 || ActualHeight < 1) return;
+            double scale = Math.Min(ActualWidth / 630, ActualHeight / 720);
+            EnsureFieldRaster(ActualWidth / scale, ActualHeight / scale, scale);
+        }
+
+        private void PrepareRaySurface(Size size)
+        {
+            if (size.Width < 1 || size.Height < 1) return;
+            double dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
+            double ratio = Math.Min(dpi, 1920 / Math.Max(size.Width, size.Height));
+            int width = Math.Max(1, (int)Math.Ceiling(size.Width * ratio));
+            int height = Math.Max(1, (int)Math.Ceiling(size.Height * ratio));
+            if (rayLayer == null || rayLayer.PixelWidth != width || rayLayer.PixelHeight != height)
+            {
+                rayPixels = new byte[4 * width * height];
+                rayLayer = new WriteableBitmap(width, height, 96, 96, PixelFormats.Pbgra32, null);
+            }
+            double scale = Math.Min(size.Width / 630, size.Height / 720);
+            burstDrawing = new DrawingGroup();
+            // Line edges are already antialiased in the surface. Avoid a
+            // second full-screen interpolation pass on software WPF.
+            RenderOptions.SetBitmapScalingMode(burstDrawing, BitmapScalingMode.NearestNeighbor);
+            burstDrawing.Children.Add(new ImageDrawing(rayLayer, new Rect(0, 0, size.Width / scale, size.Height / scale)));
+        }
+
         internal void SetPointer(Point? localPoint)
         {
+            if (pointer == localPoint) return;
             pointer = localPoint;
-            if (!still && seconds > BurstTime) InvalidateVisual();
+            pointerChanged = true;
         }
+
+        internal bool NeedsPointerFrame { get { return pointerChanged && !still && seconds >= TitleStart; } }
 
         internal void SetFrame(double elapsedSeconds, bool reducedMotion)
         {
             seconds = Double.IsNaN(elapsedSeconds) || Double.IsInfinity(elapsedSeconds) ? 0 : Math.Max(0, elapsedSeconds);
             still = reducedMotion;
+            pointerChanged = false;
             InvalidateVisual();
         }
 
@@ -173,14 +217,21 @@ namespace HolidayTimer
             if (primary && t < 6.75) DrawRing(dc, center, t);
             if (t > 6.05)
             {
-                if (t > BurstEnd) DrawStarField(dc, w, h, t, scale);
+                if (t > BurstEnd)
+                {
+                    using (DrawingContext field = fieldDrawing.Open()) DrawStarField(field, w, h, t, scale);
+                    dc.DrawDrawing(fieldDrawing);
+                }
                 if (t < BurstEnd)
                 {
                     DrawWarp(dc, w, h, center, t);
-                    if (primary) DrawFlare(dc, center, w, h, t);
                 }
                 DrawCoolingEmbers(dc, w, h, center, t);
-                if (primary && t > TitleStart) DrawTitle(dc, w, h, t);
+                if (primary && t > TitleStart)
+                {
+                    using (DrawingContext title = titleDrawing.Open()) DrawTitle(title, w, h, t);
+                    dc.DrawDrawing(titleDrawing);
+                }
             }
             dc.Pop();
         }
@@ -201,24 +252,53 @@ namespace HolidayTimer
             dc.Pop(); dc.Pop();
         }
 
-        private void DrawFlare(DrawingContext dc, Point center, double w, double h, double t)
+        // Warm these premultiplied textures when the scene is configured, then
+        // composite them directly onto the ray surface, including before ignition.
+        private sealed class FlareStamp
         {
-            double ignition = Ease((t - 6.05) / .64);
+            internal readonly byte[] Pixels;
+            internal readonly int Width, Height;
+            internal FlareStamp(byte[] pixels, int width, int height, int density)
+            {
+                Width = width * density; Height = height * density;
+                // Prefilter the smooth fan and halo once. The already-expanding
+                // light can then use a single texture sample per output pixel.
+                Pixels = new byte[Width * Height * 4];
+                for (int y = 0; y < Height; y++)
+                {
+                    double sourceY = Math.Max(0, (y + .5) / density - .5);
+                    int y0 = (int)sourceY, y1 = Math.Min(height - 1, y0 + 1);
+                    int fy = (int)((sourceY - y0) * 256);
+                    for (int x = 0; x < Width; x++)
+                    {
+                        double sourceX = Math.Max(0, (x + .5) / density - .5);
+                        int x0 = (int)sourceX, x1 = Math.Min(width - 1, x0 + 1);
+                        int fx = (int)((sourceX - x0) * 256);
+                        int a = (y0 * width + x0) * 4, b = (y0 * width + x1) * 4;
+                        int c = (y1 * width + x0) * 4, e = (y1 * width + x1) * 4;
+                        int d = (y * Width + x) * 4;
+                        for (int k = 0; k < 4; k++)
+                            Pixels[d + k] = (byte)((((256 - fx) * pixels[a + k] + fx * pixels[b + k]) * (256 - fy) +
+                                ((256 - fx) * pixels[c + k] + fx * pixels[e + k]) * fy + 32768) >> 16);
+                    }
+                }
+            }
+        }
+
+        private void BlendFlare(byte[] dest, int width, int height, Point center, double w, double h, double t)
+        {
             double build = Ease((t - 6.82) / (BurstTime - 6.82));
             double after = Math.Max(0, t - BurstTime);
-            double light = 1 - Ease(after / 1.78);
-            if (light <= 0 || ignition <= 0) return;
-            dc.PushOpacity(ignition * light);
-            double expansion = 1 + 1.65 * after;
+            double light = Ease((t - 6.05) / .64) * (1 - Ease(after / 1.78));
+            if (light < .002) return;
+            double sx = width / w, sy = height / h, cx = center.X * sx, cy = center.Y * sy;
+            double expansion = 1 + 1.65 * after, strength = build * build;
             double halo = (40 + build * 78) * expansion;
-            Glow(dc, 1, center, halo, halo);
-            if (build > 0)
+            Stamp(dest, width, height, warmGlow, cx, cy, sx * halo, sy * halo, 1, 0, light);
+            if (strength > 0)
             {
-                // Geometry keeps expanding after ignition. Only the light fades.
-                double strength = build * build;
-                dc.PushOpacity(strength);
-                DrawCentered(dc, flareFan, center, (180 + Math.Min(w * 1.25, h * 1.72) * strength) * expansion);
-                dc.Pop();
+                double radius = (180 + Math.Min(w * 1.25, h * 1.72) * strength) * expansion * .5;
+                Stamp(dest, width, height, flareFan, cx, cy, sx * radius, sy * radius, 1, 0, strength * light);
                 double span = Math.Max(w, h);
                 for (int i = 0; i < JetAngle.Length; i++)
                 {
@@ -228,45 +308,178 @@ namespace HolidayTimer
                     double length = span * JetReach[i] * (formed + after * (.75 + JetReach[i]));
                     double tail = span * JetReach[i] * after * (.48 + JetReach[i]);
                     double halfWidth = JetWidth[i] * (.26 + .74 * formed) * (1 + after * .25);
-                    dc.PushTransform(new RotateTransform(JetAngle[i], center.X, center.Y));
-                    dc.DrawImage(jetStamp, new Rect(center.X + tail, center.Y - halfWidth, length - tail, 2 * halfWidth));
-                    dc.Pop();
+                    double angle = JetAngle[i] * Math.PI / 180, cos = Math.Cos(angle), sin = Math.Sin(angle);
+                    double middle = .5 * (tail + length);
+                    Stamp(dest, width, height, jetStamp, cx + sx * middle * cos, cy + sy * middle * sin,
+                        sx * .5 * (length - tail), sy * halfWidth, cos, sin, light);
                 }
-                Glow(dc, 3, center, (8 + 54 * strength) * expansion, (8 + 48 * strength) * expansion);
+                Stamp(dest, width, height, whiteGlow, cx, cy, sx * (8 + 54 * strength) * expansion,
+                    sy * (8 + 48 * strength) * expansion, 1, 0, light);
             }
             double core = (1.8 + 4.5 * build) * expansion;
-            Glow(dc, 3, center, (8 + 18 * build) * expansion, (8 + 18 * build) * expansion);
-            dc.DrawEllipse(inks[3, Shades - 1], null, center, core, core);
-            dc.Pop();
+            halo = (8 + 18 * build) * expansion;
+            Stamp(dest, width, height, whiteGlow, cx, cy, sx * halo, sy * halo, 1, 0, light);
+            Stamp(dest, width, height, whiteGlow, cx, cy, sx * core * 2, sy * core * 2, 1, 0, light);
+        }
+
+        // Scan just the visible strip of the rotated filament (or the bounds of a halo).
+        private static void Stamp(byte[] dest, int width, int height, FlareStamp stamp, double cx, double cy,
+            double rx, double ry, double cos, double sin, double light)
+        {
+            int opacity = (int)(light * 256 + .5);
+            if (opacity == 0 || rx <= 0 || ry <= 0) return;
+            double extentY = Math.Abs(rx * sin) + Math.Abs(ry * cos);
+            int top = Math.Max(0, (int)Math.Floor(cy - extentY)), bottom = Math.Min(height, (int)Math.Ceiling(cy + extentY));
+            double scaleX = .5 * stamp.Width / rx, scaleY = .5 * stamp.Height / ry;
+            int stepU = (int)Math.Round(cos * scaleX * 65536), stepV = (int)Math.Round(-sin * scaleY * 65536);
+            byte[] pixels = stamp.Pixels;
+            for (int y = top; y < bottom; y++)
+            {
+                double dy = y + .5 - cy, left = -cx, right = width - cx;
+                if (!ClipStampRow(cos, sin * dy, rx, ref left, ref right) ||
+                    !ClipStampRow(-sin, cos * dy, ry, ref left, ref right)) continue;
+                int first = Math.Max(0, (int)Math.Ceiling(cx + left - .5));
+                int end = Math.Min(width, (int)Math.Ceiling(cx + right - .5));
+                double dx = first + .5 - cx;
+                int u = (int)(((cos * dx + sin * dy + rx) * scaleX) * 65536);
+                int v = (int)(((-sin * dx + cos * dy + ry) * scaleY) * 65536);
+                for (int x = first, d = (y * width + first) * 4; x < end; x++, d += 4, u += stepU, v += stepV)
+                {
+                    int tx = u >> 16, ty = v >> 16;
+                    if ((uint)tx >= (uint)stamp.Width || (uint)ty >= (uint)stamp.Height) continue;
+                    int p = (ty * stamp.Width + tx) * 4;
+                    int alpha = (pixels[p + 3] * opacity + 128) >> 8;
+                    if (alpha == 0) continue;
+                    if (dest[d + 3] == 0)
+                    {
+                        dest[d] = (byte)((pixels[p] * opacity + 128) >> 8);
+                        dest[d + 1] = (byte)((pixels[p + 1] * opacity + 128) >> 8);
+                        dest[d + 2] = (byte)((pixels[p + 2] * opacity + 128) >> 8);
+                        dest[d + 3] = (byte)alpha;
+                        continue;
+                    }
+                    int keep = 255 - alpha;
+                    dest[d] = (byte)(((pixels[p] * opacity + 128) >> 8) + (dest[d] * keep + 127) / 255);
+                    dest[d + 1] = (byte)(((pixels[p + 1] * opacity + 128) >> 8) + (dest[d + 1] * keep + 127) / 255);
+                    dest[d + 2] = (byte)(((pixels[p + 2] * opacity + 128) >> 8) + (dest[d + 2] * keep + 127) / 255);
+                    dest[d + 3] = (byte)(alpha + (dest[d + 3] * keep + 127) / 255);
+                }
+            }
+        }
+
+        private static bool ClipStampRow(double coefficient, double offset, double half, ref double left, ref double right)
+        {
+            if (Math.Abs(coefficient) < 1e-8) return Math.Abs(offset) <= half;
+            double a = (-half - offset) / coefficient, b = (half - offset) / coefficient;
+            left = Math.Max(left, Math.Min(a, b)); right = Math.Min(right, Math.Max(a, b));
+            return right > left;
+        }
+
+        private static FlareStamp CreateFlareGlow(Color color)
+        {
+            const int size = 96;
+            byte[] pixels = new byte[size * size * 4];
+            for (int y = 0; y < size; y++) for (int x = 0; x < size; x++)
+            {
+                double dx = (2 * x + 1.0) / size - 1, dy = (2 * y + 1.0) / size - 1;
+                double r = Math.Sqrt(dx * dx + dy * dy);
+                double a = r < .13 ? 1 - .475 * r / .13 : r < .36 ? .525 - .356 * (r - .13) / .23 :
+                    r < .7 ? .169 - .134 * (r - .36) / .34 : Math.Max(0, .035 * (1 - r) / .3);
+                int p = (y * size + x) * 4;
+                pixels[p] = (byte)(color.B * a); pixels[p + 1] = (byte)(color.G * a);
+                pixels[p + 2] = (byte)(color.R * a); pixels[p + 3] = (byte)(255 * a);
+            }
+            return new FlareStamp(pixels, size, size, 4);
         }
 
         private void DrawWarp(DrawingContext dc, double w, double h, Point center, double t)
         {
             double age = t - BurstTime;
-            if (age <= 0) return;
+            if (rayLayer == null || (age <= 0 && !primary)) return;
+            int width = rayLayer.PixelWidth, height = rayLayer.PixelHeight;
+            double scale = width / w;
+            double cx = center.X * scale, cy = center.Y * height / h;
+            Array.Clear(rayPixels, 0, rayPixels.Length);
             double fade = 1 - Ease((age - 3.8) / (BurstDuration - 3.8));
-            // All rays leave on the same ignition. Depth spreads their screen crossings over time.
-            for (int i = 0; i < rays.Length; i++)
+            // Composite the entire shell once; a WPF opacity layer per ray is
+            // particularly costly where the ray heads overlap at ignition.
+            for (int i = 0; age > 0 && i < rays.Length; i++)
             {
                 Star s = rays[i];
                 double flight = age * s.Speed;
                 double travel = flight * (.50 + .36 * flight);
-                Vector axis = new Point(s.X * w, s.Y * h) - center;
-                Point head = center + axis * travel;
-                if (head.X < -80 || head.Y < -80 || head.X > w + 80 || head.Y > h + 80) continue;
+                double dx = s.X * width - cx, dy = s.Y * height - cy;
+                double x = cx + dx * travel, y = cy + dy * travel;
+                if (x < -80 * scale || y < -80 * scale || x > width + 80 * scale || y > height + 80 * scale) continue;
                 double tail = travel * (.08 + .22 * s.Depth) * Math.Min(1, flight * 3);
-                Point tip = center + axis * (travel - tail);
                 double light = fade * (.32 + .68 * s.Depth) * Math.Min(1, flight * 4);
                 int breadth = s.Depth > .89 ? 3 : s.Depth > .63 ? 2 : 1;
-                dc.DrawLine(lines[s.Tint, Shade(light * .65), breadth], tip, head);
-                dc.DrawLine(lines[3, Shade(light), breadth - 1], head + (tip - head) * .69, head);
-                if (s.Depth > .91)
+                double inkWidth = (.65 + breadth * breadth * .54) * scale;
+                double coreWidth = (.65 + (breadth-1) * (breadth-1) * .54) * scale;
+                RayStroke(width, height, x - dx * tail, y - dy * tail, x, y,
+                    inkWidth, light * .65, palette[s.Tint]);
+                RayStroke(width, height, x - dx * tail * .69, y - dy * tail * .69, x, y,
+                    coreWidth, light, palette[3]);
+                if (s.Depth > .91) RayGlow(width, height, x, y, (2.8 + s.Depth) * scale,
+                    fade * Math.Min(1, flight * 4), palette[s.Tint]);
+            }
+            if (primary && t < BurstTime + 1.78) BlendFlare(rayPixels, width, height, center, w, h, t);
+            rayLayer.WritePixels(new Int32Rect(0, 0, width, height), rayPixels, width * 4, 0);
+            dc.DrawDrawing(burstDrawing);
+        }
+
+        // Scan across the major axis so steep, long trails touch only their
+        // narrow strip of pixels. Fractional overlap antialiases both edges.
+        private void RayStroke(int width, int height, double x0, double y0, double x1, double y1,
+            double thickness, double light, Color color)
+        {
+            bool steep = Math.Abs(y1-y0) > Math.Abs(x1-x0);
+            double u0 = steep ? y0 : x0, v0 = steep ? x0 : y0;
+            double u1 = steep ? y1 : x1, v1 = steep ? x1 : y1;
+            double length = u1 - u0;
+            if (Math.Abs(length) < .01 || light < .003) return;
+            double slope = (v1 - v0) / length;
+            double half = thickness * .5 * Math.Sqrt(1 + slope * slope);
+            int major = steep ? height : width, minor = steep ? width : height;
+            double left = Math.Min(u0,u1), right = Math.Max(u0,u1);
+            int first = Math.Max(0,(int)Math.Floor(left)), last = Math.Min(major-1,(int)Math.Floor(right));
+            double v = v0 + (first + .5 - u0) * slope;
+            for (int u = first; u <= last; u++, v += slope)
+            {
+                double along = Math.Min(u+1.0,right) - Math.Max(u,left);
+                int lo = Math.Max(0,(int)Math.Floor(v-half)), hi = Math.Min(minor-1,(int)Math.Floor(v+half));
+                for (int k = lo; k <= hi; k++)
                 {
-                    dc.PushOpacity(fade * Math.Min(1, flight * 4));
-                    Glow(dc, s.Tint, head, 2.8 + s.Depth, 2.8 + s.Depth);
-                    dc.Pop();
+                    double across = Math.Min(k+1.0,v+half) - Math.Max(k,v-half);
+                    int alpha = (int)(255 * light * along * across);
+                    if (alpha > 0) BlendRay(4 * (steep ? u * width + k : k * width + u), color, alpha);
                 }
             }
+        }
+
+        private void RayGlow(int width, int height, double x, double y, double radius, double light, Color color)
+        {
+            double inverse = 1 / (radius * radius);
+            int left = Math.Max(0,(int)(x-radius)), right = Math.Min(width-1,(int)(x+radius));
+            int top = Math.Max(0,(int)(y-radius)), bottom = Math.Min(height-1,(int)(y+radius));
+            for (int row=top; row<=bottom; row++) for (int col=left;col<=right;col++)
+            {
+                double dx = col+.5-x, dy = row+.5-y;
+                double falloff = 1 - (dx*dx + dy*dy) * inverse;
+                if (falloff <= 0) continue;
+                double squared = falloff * falloff;
+                int alpha = (int)(255 * light * squared * squared * squared);
+                if (alpha > 0) BlendRay(4*(row*width+col), color, alpha);
+            }
+        }
+
+        private void BlendRay(int index, Color color, int alpha)
+        {
+            int behind = 255 - alpha;
+            rayPixels[index] = (byte)((color.B * alpha + rayPixels[index] * behind + 127) / 255);
+            rayPixels[index+1] = (byte)((color.G * alpha + rayPixels[index+1] * behind + 127) / 255);
+            rayPixels[index+2] = (byte)((color.R * alpha + rayPixels[index+2] * behind + 127) / 255);
+            rayPixels[index+3] = (byte)(alpha + (rayPixels[index+3] * behind + 127) / 255);
         }
 
         // Fired with the other rays, a few distant embers slow into the first
@@ -278,19 +491,18 @@ namespace HolidayTimer
             double progress = Clamp(age / BurstDuration);
             double radius = 1 - (1 - progress) * (1 - progress);
             double trail = .085 * progress * (1 - progress);
-            dc.PushOpacity(Ease(age / .65) * (1 - Ease(settled / DustFadeDuration)));
+            double opacity = Ease(age / .65) * (1 - Ease(settled / DustFadeDuration));
             for (int i = 0; i < ForegroundStars; i += 11)
             {
                 Star s = stars[i];
                 Vector path = FieldStarPosition(s, w, h, age) - center;
                 Point head = center + path * radius;
                 if (head.X < -8 || head.Y < -8 || head.X > w + 8 || head.Y > h + 8) continue;
-                double light = .26 + .44 * s.Depth;
-                dc.DrawLine(lines[s.Tint, Shade(light * .6), 0], head - path * trail, head);
+                double light = (.26 + .44 * s.Depth) * opacity;
+                dc.DrawLine(emberPens[s.Tint, Shade(light * .6)], head - path * trail, head);
                 double size = .6 + s.Depth * .78;
                 dc.DrawEllipse(inks[s.Tint, Shade(light)], null, head, size, size);
             }
-            dc.Pop();
         }
 
         private static Point FieldStarPosition(Star s, double w, double h, double age)
@@ -302,8 +514,9 @@ namespace HolidayTimer
         private void DrawStarField(DrawingContext dc, double w, double h, double t, double scale)
         {
             double settled = t - BurstEnd;
+            double density = EnsureFieldRaster(w, h, scale);
             dc.PushOpacity(Ease((settled - .12) / 2.48));
-            dc.DrawImage(deepSky, new Rect(0, 0, w, h));
+            dc.DrawImage(sizedSky, new Rect(0, 0, w, h));
             dc.Pop();
             double drift = t - BurstTime;
             dc.PushOpacity(Ease((settled - .40) / 2.50));
@@ -313,16 +526,17 @@ namespace HolidayTimer
                 Rect bounds = galaxy.Bounds;
                 double x = (3.5 + i * .25) * Math.Sin(drift * (.076 + i * .012) + i * 1.71);
                 double y = (2.4 + i * .16) * Math.Cos(drift * (.061 + i * .009) + i * 2.13);
-                dc.DrawImage(galaxy.Image, new Rect(bounds.X * w + x / scale, bounds.Y * h + y / scale,
+                dc.DrawImage(galaxy.Scaled, new Rect(bounds.X * w + x / scale, bounds.Y * h + y / scale,
                     bounds.Width * w, bounds.Height * h));
             }
             dc.Pop();
-            dc.PushOpacity(Ease(settled / DustFadeDuration));
+            int pixelWidth = fieldImage.PixelWidth, pixelHeight = fieldImage.PixelHeight;
+            Array.Clear(fieldPixels, 0, fieldPixels.Length);
             Point? mouse = still || !pointer.HasValue ? (Point?)null :
                 new Point(pointer.Value.X / scale, pointer.Value.Y / scale);
             if (still || t < lastFieldFrame) Array.Clear(fieldOffsets, 0, fieldOffsets.Length);
             double delta = lastFieldFrame < 0 ? 1.0 / 30 : Math.Max(0, Math.Min(t - lastFieldFrame, .12));
-            double catchup = 1 - Math.Exp(-delta * 8.5);
+            double catchup = 1 - Math.Exp(-delta * (mouse.HasValue ? 16 : 9));
             lastFieldFrame = t;
             const double reach = 157;
             for (int i = 0; i < stars.Length; i++)
@@ -344,7 +558,7 @@ namespace HolidayTimer
                     fieldOffsets[i] = offset;
                     pos += offset;
                 }
-                double attracted = Math.Min(1, offset.Length / 30);
+                double attracted = Math.Min(1, Math.Sqrt(offset.LengthSquared) / 30);
                 // Each star has its own rise time and phase. Only a few show a
                 // stronger glint, so the settled sky never pulses as a whole.
                 double glimmer = .50 + .33 * Math.Sin(drift * (.51 + s.Drift * .72) + s.Phase)
@@ -363,13 +577,71 @@ namespace HolidayTimer
                 }
                 if (s.Depth > .967 || attracted > .28 || glint > .4)
                 {
-                    dc.PushOpacity(Clamp(.18 + .56 * glimmer + .34 * glint + .65 * attracted));
-                    Glow(dc, s.Tint, pos, rad * 4, rad * 4);
-                    dc.Pop();
+                    double halo = Clamp(.18 + .56 * glimmer + .34 * glint + .65 * attracted);
+                    SplatFieldHalo(fieldPixels, pixelWidth, pixelHeight, pos.X * density, pos.Y * density,
+                        rad * density * 4, palette[s.Tint], halo);
                 }
-                dc.DrawEllipse(inks[s.Tint, Shade(light)], null, pos, rad, rad);
+                Splat(fieldPixels, pixelWidth, pixelHeight, pos.X * density, pos.Y * density,
+                    rad * density, palette[s.Tint], Clamp(light));
             }
+            fieldImage.WritePixels(new Int32Rect(0, 0, pixelWidth, pixelHeight), fieldPixels, pixelWidth * 4, 0);
+            dc.PushOpacity(Ease(settled / DustFadeDuration));
+            dc.DrawImage(fieldImage, new Rect(0, 0, w, h));
             dc.Pop();
+        }
+
+        private double EnsureFieldRaster(double w, double h, double scale)
+        {
+            double density = Math.Min(scale * VisualTreeHelper.GetDpi(this).DpiScaleX,
+                Math.Min(1920 / w, 1080 / h));
+            int width = Math.Max(1, (int)Math.Round(w * density)), height = Math.Max(1, (int)Math.Round(h * density));
+            if (sizedSky != null && fieldImage.PixelWidth == width && fieldImage.PixelHeight == height) return density;
+            fieldImage = new WriteableBitmap(width, height, 96, 96, PixelFormats.Pbgra32, null);
+            fieldPixels = new byte[width * height * 4];
+            sizedSky = ScaleFieldImage(deepSky, width, height);
+            for (int i = 0; i < galaxies.Length; i++)
+            {
+                GalaxySprite galaxy = galaxies[i];
+                galaxy.Scaled = ScaleFieldImage(galaxy.Image, Math.Max(1, (int)Math.Round(galaxy.Bounds.Width * width)),
+                    Math.Max(1, (int)Math.Round(galaxy.Bounds.Height * height)));
+                galaxies[i] = galaxy;
+            }
+            return density;
+        }
+
+        // Resize the static artwork once, with interpolation, so its diffuse edges stay smooth
+        // without making the software compositor resample the full sky on every frame.
+        private static BitmapSource ScaleFieldImage(BitmapSource source, int width, int height)
+        {
+            if (width == source.PixelWidth && height == source.PixelHeight) return source;
+            var scaled = new TransformedBitmap(source, new ScaleTransform((double)width / source.PixelWidth,
+                (double)height / source.PixelHeight));
+            int stride = scaled.PixelWidth * 4;
+            byte[] pixels = new byte[stride * scaled.PixelHeight];
+            scaled.CopyPixels(pixels, stride, 0);
+            BitmapSource copy = BitmapSource.Create(scaled.PixelWidth, scaled.PixelHeight, 96, 96, PixelFormats.Pbgra32, null, pixels, stride);
+            copy.Freeze();
+            return copy;
+        }
+
+        private static void SplatFieldHalo(byte[] pixels, int w, int h, double x, double y, double radius,
+            Color colour, double light)
+        {
+            int left = Math.Max(0, (int)(x - radius)), right = Math.Min(w - 1, (int)(x + radius));
+            int top = Math.Max(0, (int)(y - radius)), bottom = Math.Min(h - 1, (int)(y + radius));
+            double invRadius = 1 / radius;
+            for (int py = top; py <= bottom; py++) for (int px = left; px <= right; px++)
+            {
+                double dx = px + .5 - x, dy = py + .5 - y;
+                double falloff = 1 - Math.Sqrt(dx * dx + dy * dy) * invRadius;
+                if (falloff <= 0) continue;
+                double squared = falloff * falloff, alpha = light * squared * squared;
+                int n = 4 * (py * w + px);
+                pixels[n] = (byte)(pixels[n] * (1 - alpha) + colour.B * alpha);
+                pixels[n + 1] = (byte)(pixels[n + 1] * (1 - alpha) + colour.G * alpha);
+                pixels[n + 2] = (byte)(pixels[n + 2] * (1 - alpha) + colour.R * alpha);
+                pixels[n + 3] = (byte)(pixels[n + 3] * (1 - alpha) + 255 * alpha);
+            }
         }
 
         // Bake the fixed dust lanes separately from the four translating galaxies.
@@ -584,7 +856,7 @@ namespace HolidayTimer
             double delta = lastTitleFrame < 0 ? 1.0 / 30 : Math.Min(.12, Math.Max(0, t - lastTitleFrame));
             lastTitleFrame = t;
             const double radius = 100;
-            double catchup = 1 - Math.Exp(-delta * 11);
+            double catchup = 1 - Math.Exp(-delta * (pointer.HasValue ? 18 : 11));
             Point? mouse = !still && pointer.HasValue ? (Point?)new Point(pointer.Value.X * w / ActualWidth - bounds.Left,
                 pointer.Value.Y * w / ActualWidth - bounds.Top) : null;
             bool anyMoving = false;
@@ -594,6 +866,7 @@ namespace HolidayTimer
                     mouse.Value.X <= (tile.X + tile.Width) * size + radius &&
                     mouse.Value.Y >= -radius && mouse.Value.Y <= bounds.Height + radius;
                 if (!near && !tile.Displaced) continue;
+                bool repaint = tile.Motion == null || tile.MotionScale != size;
                 tile.Displaced = false;
                 foreach (int index in tile.Grains)
                 {
@@ -602,20 +875,26 @@ namespace HolidayTimer
                     if (near)
                     {
                         double mx = mouse.Value.X - g.X * size, my = mouse.Value.Y - g.Y * size;
-                        double distance = Math.Sqrt(mx * mx + my * my);
-                        double pull = (1 - Ease((distance / radius - .28) / .72)) * (.96 + g.Delay * .08);
-                        dx = mx * pull;
-                        dy = (my - 2 * g.Weight) * pull;
+                        double distance2 = mx * mx + my * my;
+                        if (distance2 < radius * radius)
+                        {
+                            double pull = (1 - Ease((Math.Sqrt(distance2) / radius - .28) / .72)) * (.96 + g.Delay * .08);
+                            dx = mx * pull;
+                            dy = (my - 2 * g.Weight) * pull;
+                        }
                     }
                     Point last = grainOffsets[index];
                     Point offset = new Point(last.X + (dx - last.X) * catchup, last.Y + (dy - last.Y) * catchup);
+                    if (Math.Abs(offset.X - dx) + Math.Abs(offset.Y - dy) < .08)
+                        offset = new Point(dx, dy);
                     if (Math.Abs(offset.X) + Math.Abs(offset.Y) <= .10) offset = new Point();
                     else tile.Displaced = true;
+                    if (last != offset) repaint = true;
                     grainOffsets[index] = offset;
                 }
                 if (tile.Displaced)
                 {
-                    PaintDisplacedTile(tile, size, radius);
+                    if (repaint) PaintDisplacedTile(tile, size, radius);
                     anyMoving = true;
                 }
             }
@@ -624,6 +903,7 @@ namespace HolidayTimer
 
         private void PaintDisplacedTile(TitleTile tile, double size, double radius)
         {
+            tile.MotionScale = size;
             // The strongest pull is less than half the influence radius. Padding
             // lets grains leave their home tile and even the top/bottom of a letter.
             int pad = 2 + (int)Math.Ceiling(.5 * radius / size);
@@ -767,9 +1047,8 @@ namespace HolidayTimer
 
         // A baked, directional diffraction fan adds broad light between the
         // sharp axial streaks. Each ray has its own spread and spectral edge.
-        private BitmapSource CreateFlareFan()
+        private FlareStamp CreateFlareFan()
         {
-            jetStamp = CreateJet();
             const int side = 440;
             double[] angles = { -158, -145, -119, -75, -39, -23, 18, 35, 57, 112, 140, 156 };
             int n = angles.Length;
@@ -807,11 +1086,11 @@ namespace HolidayTimer
                 pixels[p + 2] = (byte)(edge * (1 - Math.Exp(-r)));
                 pixels[p + 3] = Math.Max(pixels[p], Math.Max(pixels[p + 1], pixels[p + 2]));
             }
-            return Image(pixels, side, side);
+            return new FlareStamp(pixels, side, side, 4);
         }
 
         // A one-sided optical filament with a white spine and a tapered warm halo.
-        private BitmapSource CreateJet()
+        private FlareStamp CreateJet()
         {
             const int w = 256, h = 28;
             byte[] pixels = new byte[w * h * 4];
@@ -830,25 +1109,12 @@ namespace HolidayTimer
                     pixels[p + 2] = pixels[p + 3] = (byte)(255 * light);
                 }
             }
-            return Image(pixels, w, h);
+            return new FlareStamp(pixels, w, h, 2);
         }
 
         private static void DrawCentered(DrawingContext dc, ImageSource image, Point p, double size)
         { dc.DrawImage(image, new Rect(p.X - size * .5, p.Y - size * .5, size, size)); }
 
-        private void Glow(DrawingContext dc, int tint, Point p, double rx, double ry)
-        { dc.DrawEllipse(bloom[tint], null, p, rx, ry); }
-
-        private static Brush Halo(Color color)
-        {
-            RadialGradientBrush b = new RadialGradientBrush();
-            b.GradientStops.Add(new GradientStop(color, 0));
-            b.GradientStops.Add(new GradientStop(Color.FromArgb(134, color.R, color.G, color.B), .13));
-            b.GradientStops.Add(new GradientStop(Color.FromArgb(43, color.R, color.G, color.B), .36));
-            b.GradientStops.Add(new GradientStop(Color.FromArgb(9, color.R, color.G, color.B), .70));
-            b.GradientStops.Add(new GradientStop(Color.FromArgb(0, color.R, color.G, color.B), 1));
-            b.Freeze(); return b;
-        }
 
         private static Color Mix(Color a, Color b, double amount)
         { return Color.FromRgb((byte)(a.R + (b.R - a.R) * amount), (byte)(a.G + (b.G - a.G) * amount), (byte)(a.B + (b.B - a.B) * amount)); }
