@@ -323,6 +323,7 @@ namespace HolidayTimer
                 Check(!app.CheckMorning(morning.AddMinutes(2)), "Dismissed greeting stays dismissed today");
                 Check(store.Load().LastGreetingDate == DateTime.Today.ToString("yyyy-MM-dd"), "Morning deduplication survives restart");
                 CheckCelebrationPreviews(app, store);
+                CheckDayZeroPreview(app, store);
                 CheckCalendarDayDisplays(app, store);
                 app.Settings.TargetLocal = DateTime.Today.AddDays(-1).ToString(CountdownCalculator.TargetFormat, CultureInfo.InvariantCulture);
                 app.Settings.LastArrivalTarget = app.Settings.TargetLocal;

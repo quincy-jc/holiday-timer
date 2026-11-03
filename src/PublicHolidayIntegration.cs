@@ -15,16 +15,31 @@ namespace HolidayTimer
         {
             publicHolidayWarning = NswPublicHolidays.Initialize(PublicHolidayCacheDirectory);
             DateTime now = DateTime.Now;
+            if (KeepTodayForCelebration(now))
+            {
+                // A corrected public holiday can move off today's date while the app is closed.
+                if (!String.IsNullOrEmpty(Settings.PublicHolidayKey)) UpdateLinkedPublicHoliday(now);
+                return;
+            }
             if (EnsurePublicHolidayFallback(now, true)) return;
             if (Settings.AutomaticPublicHoliday) SelectAutomaticPublicHoliday(now);
             else if (Settings.IsConfigured && !String.IsNullOrEmpty(Settings.PublicHolidayKey)) UpdateLinkedPublicHoliday(now);
         }
 
-        // Startup skips a stale saved event. A running event first completes
-        // its arrival presentation; its next target loads after dismissal.
+        private bool KeepTodayForCelebration(DateTime now)
+        {
+            if (DayZeroPolicy.Pending(Settings, now)) return true;
+            // If this morning's reveal was delivered, keep today's target for
+            // an arrival missed while the app was closed.
+            return Settings.IsConfigured && Settings.DayZeroEnabled &&
+                Settings.LastDayZeroDate == now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) &&
+                ArrivalPolicy.ShouldShow(Settings, CountdownCalculator.ToLocalOffset(now)) &&
+                CountdownCalculator.ParseTarget(Settings.TargetLocal).Date == now.Date;
+        }
+
         internal bool EnsurePublicHolidayFallback(DateTime now, bool startup = false)
         {
-            if (quitting || (!startup && (!SessionAvailable || Greeting != null ||
+            if (quitting || IsDayZeroOpen || KeepTodayForCelebration(now) || (!startup && (!SessionAvailable || Greeting != null ||
                 (desktopIntegration && !DesktopSession.IsUnlocked())))) return false;
             bool missing = !Settings.IsConfigured && !Settings.AutomaticPublicHoliday;
             bool expired;
@@ -98,7 +113,7 @@ namespace HolidayTimer
 
         private bool ReconcilePublicHolidayData(DateTime now)
         {
-            if (Settings.AutomaticPublicHoliday) return SelectAutomaticPublicHoliday(now);
+            if (Settings.AutomaticPublicHoliday && !KeepTodayForCelebration(now)) return SelectAutomaticPublicHoliday(now);
             if (!String.IsNullOrEmpty(Settings.PublicHolidayKey)) return UpdateLinkedPublicHoliday(now);
             return EnsurePublicHolidayFallback(now);
         }
@@ -115,7 +130,7 @@ namespace HolidayTimer
             AppSettings updated = Settings.Copy();
             updated.HolidayName = holiday.Name; updated.TargetLocal = targetText;
             Settings = updated;
-            if (target <= now) { if (SelectAutomaticPublicHoliday(now)) UpdateUnchangedHolidayForm(previous); }
+            if (target <= now && !KeepTodayForCelebration(now)) { if (SelectAutomaticPublicHoliday(now)) UpdateUnchangedHolidayForm(previous); }
             else { SaveQuietly(); UpdateUnchangedHolidayForm(previous); }
             return true;
         }
@@ -127,6 +142,7 @@ namespace HolidayTimer
                 String.IsNullOrWhiteSpace(Layouts.Find<TextBox>(form, "HolidayTime").Text);
             bool expired = TryReadTarget(form, out target, out error) &&
                 CountdownCalculator.ToLocalTarget(target) <= CountdownCalculator.ToLocalOffset(now);
+            if (expired && target == Settings.TargetLocal && KeepTodayForCelebration(now)) return false;
             if (!blank && !expired) return false;
             NswPublicHoliday next = NswPublicHolidays.Next(now);
             if (next == null) return false;

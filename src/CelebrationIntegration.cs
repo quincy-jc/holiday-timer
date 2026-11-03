@@ -10,12 +10,19 @@ namespace HolidayTimer
         {
             Layouts.Find<ComboBox>(form, "CelebrationStyle").SelectedIndex = (int)settings.CelebrationEffect;
             Layouts.Find<CheckBox>(form, "AlwaysAnimateCelebrations").IsChecked = settings.AlwaysAnimateCelebrations;
+            Layouts.Find<CheckBox>(form, "DayZeroEnabled").IsChecked = settings.DayZeroEnabled;
             UpdateCelebrationDescription(form);
             UpdateCelebrationMotionDescription(form);
         }
 
-        private static void BindCelebrationForm(Window form)
+        private void BindCelebrationForm(Window form)
         {
+            Layouts.Find<Button>(form, "PreviewDayZero").Click += delegate
+            {
+                AppSettings preview = new AppSettings { Theme = (HolidayTheme)Layouts.Find<ComboBox>(form, "ColourScheme").SelectedIndex,
+                    AlwaysAnimateCelebrations = Layouts.Find<CheckBox>(form, "AlwaysAnimateCelebrations").IsChecked == true };
+                ShowDayZero(preview);
+            };
             Layouts.Find<ComboBox>(form, "CelebrationStyle").SelectionChanged += delegate { UpdateCelebrationDescription(form); };
             CheckBox alwaysAnimate = Layouts.Find<CheckBox>(form, "AlwaysAnimateCelebrations");
             alwaysAnimate.Checked += delegate { UpdateCelebrationMotionDescription(form); };
@@ -48,6 +55,7 @@ namespace HolidayTimer
             if (value < 0 || value > 1) { error = "Choose fireworks or flowers for your celebration."; return false; }
             draft.CelebrationEffect = (CelebrationKind)value;
             draft.AlwaysAnimateCelebrations = Layouts.Find<CheckBox>(form, "AlwaysAnimateCelebrations").IsChecked == true;
+            draft.DayZeroEnabled = Layouts.Find<CheckBox>(form, "DayZeroEnabled").IsChecked == true;
             return true;
         }
     }

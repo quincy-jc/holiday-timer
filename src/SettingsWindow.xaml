@@ -188,6 +188,8 @@
                   <TextBlock Text="Make the moment yours" FontWeight="SemiBold" FontSize="18" Foreground="{DynamicResource Heading}" Margin="0,0,0,8"/>
                   <CheckBox x:Name="StartAtLogin" Content="Launch when I _sign in"/><CheckBox x:Name="MorningGreeting" Content="Celebrate each _morning"/>
                   <TextBlock Text="A fullscreen celebration, once between 5 am and noon." Foreground="{DynamicResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="44,3,0,0"/>
+                  <CheckBox x:Name="DayZeroEnabled" Content="Show the Day _Zero starburst" Margin="0,8,0,0"/>
+                  <TextBlock Text="Once when you sign in or unlock on the holiday date." Foreground="{DynamicResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="44,3,0,0"/>
                   <StackPanel Margin="0,18,0,0">
                     <Label Content="Celebration _effect" Target="{Binding ElementName=CelebrationStyle}"/><ComboBox x:Name="CelebrationStyle" AutomationProperties.Name="Celebration effect"><ComboBoxItem Content="Fireworks + confetti"/><ComboBoxItem Content="Flowers + confetti"/></ComboBox>
                     <TextBlock x:Name="CelebrationDescription" Text="Layered fireworks with glowing trails and falling confetti. Plays until you dismiss it." Foreground="{DynamicResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0"/>
@@ -195,7 +197,10 @@
                   </StackPanel>
                   <CheckBox x:Name="AlwaysAnimateCelebrations" Content="Always animate cele_brations" Margin="0,16,0,0" AutomationProperties.Name="Always animate celebrations, even when Windows animation effects are off"/>
                   <TextBlock x:Name="CelebrationMotionStatus" Foreground="{DynamicResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="44,3,0,0" AutomationProperties.LiveSetting="Polite"/>
-                  <Button x:Name="PreviewGreeting" HorizontalAlignment="Left" Margin="0,16,0,0" Padding="12,8" FontSize="12" AutomationProperties.Name="Preview celebration"><StackPanel Orientation="Horizontal"><TextBlock Text="Preview celebration"/><Path Data="M 1 9 L 9 1 M 3 1 L 9 1 L 9 7" Width="10" Height="10" Stroke="{DynamicResource Heading}" StrokeThickness="1.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Margin="8,0,0,0" VerticalAlignment="Center"/></StackPanel></Button>
+                  <WrapPanel Margin="0,12,0,0">
+                    <Button x:Name="PreviewGreeting" Content="Preview celebration" Padding="12,8" Margin="0,0,8,4" FontSize="12" AutomationProperties.Name="Preview celebration"/>
+                    <Button x:Name="PreviewDayZero" Content="Preview Day Zero" Padding="12,8" Margin="0,0,0,4" FontSize="12" AutomationProperties.Name="Preview the Day Zero starburst on all screens"/>
+                  </WrapPanel>
                 </StackPanel>
               </TabItem>
               <TabItem x:Name="UpdatesTab" Header="_Updates" AutomationProperties.Name="Application updates">

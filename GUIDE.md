@@ -4,7 +4,7 @@ A native Windows countdown with a live glass panel, animated orb and tray icon. 
 
 ## Install from one file
 
-Share `dist/calendar-days-setup/HolidayTimerSetup.exe` for version 1.9.5. Double-click and choose Install. It updates the existing app without duplicate Apps entries and preserves preferences. A new or expired countdown automatically loads the next NSW public holiday, and a settings picker can refresh dates from the NSW Government. Previous artifacts retain their directories.
+Share `dist/day-zero-setup/HolidayTimerSetup.exe` for version 1.10.0. It upgrades the existing installation and preserves saved preferences.
 
 The setup installs for the current Windows user at `%LOCALAPPDATA%\Programs\HolidayTimer`. On Windows 11 it needs no administrator password, restart, or internet connection. It adds a Start menu shortcut and **Holiday Timer** to **Settings → Apps → Installed apps**, where you can choose **Uninstall**.
 
@@ -14,9 +14,9 @@ The single setup file contains the app, configuration, software licence, and fon
 
 ## Open the portable build
 
-The current portable app is `dist/calendar-days/HolidayTimer.exe`. Keep its configuration and licences beside it. Prior builds remain in their existing folders.
+The current portable app is `dist/day-zero/HolidayTimer.exe`. Keep its configuration and licences beside it. Prior builds remain in their existing folders.
 
-If another copy is running, **save any edits you want to keep**, then choose **Exit Holiday Timer** from its system tray menu. Open `dist/calendar-days/HolidayTimer.exe`. The app is single-instance: opening another copy while the old one is running activates the existing app.
+If another copy is running, **save any edits you want to keep**, then choose **Exit Holiday Timer** from its system tray menu. Open `dist/day-zero/HolidayTimer.exe`. The app is single-instance: opening another copy while the old one is running activates the existing app.
 
 Keep `HolidayTimer.exe.config`, `LICENSE.txt` and `Inter-LICENSE.txt` beside the executable. Inter Display is bundled, and the app uses the .NET Framework included with Windows 11.
 
@@ -24,7 +24,7 @@ Enter the holiday name, date, and 24-hour time. Choose a unit, adjust appearance
 
 The date picker matches your Dark/Light scheme. Monday-first weeks keep weekend columns together; NSW public holidays are marked with named tooltips, and your selected celebration date stays distinct. Arrow keys and month/year navigation remain available. Select **NSW holidays…** beside the date field to choose an upcoming holiday, or refresh published dates from the NSW Government. Choosing a holiday fills the draft; **Save countdown** commits it.
 
-If no countdown has been set, the gadget starts with the next NSW statewide public holiday. A saved event stays selected while its time is in the future. After it arrives, its celebration remains open until dismissed, then the gadget switches to the next public holiday. An event already past when the app starts is replaced by the next holiday. A public holiday countdown starts at midnight in your computer's local time zone. A blank date/time or a past date in the settings form also chooses the next public holiday when saved.
+If no countdown has been set, the gadget starts with the next NSW statewide public holiday. After a saved event arrives and its celebration is dismissed, the gadget can switch to the next public holiday. An enabled Day Zero reveal keeps a saved holiday for its first sign-in on that date. Public holiday countdowns start at midnight in the computer’s local time zone.
 
 The built-in calendar covers 2024–2031. Published NSW dates are included through 2027; later dates are estimates based on recurring rules and are labelled accordingly. **Refresh holidays** checks the official NSW Government page only when clicked. The last successfully refreshed dates remain available offline if a later refresh fails. Bank Holiday and local-only events are excluded. Dates outside calendar coverage remain selectable for elapsed countdowns.
 
@@ -61,13 +61,13 @@ Dogs and cats have fuller thighs and shoulders that blend into the torso, with p
 
 ## Updates
 
-Version 1.9.5 checks the public `quincy-jc/holiday-timer` GitHub Releases page immediately at startup and approximately every six hours while running. An already-running app can therefore take up to six hours to detect a newly published release. **Settings → Updates → Check for updates** or **Check for updates** in the tray starts a check immediately. A tray notification appears when an automatic check finds a newer stable version. Checks require an internet connection; offline or failed checks leave the existing countdown working.
+Holiday Timer checks GitHub at startup and about every six hours while the app is running and online. A tray notification appears when it finds a newer stable version. Choose **Settings → Updates → Check for updates** to check immediately.
 
 Choose **Download and install**, save any settings edits, and confirm. The app verifies the download against the release's SHA-256 digest and version, closes, and the per-user installer updates the existing installation and reopens it. Updates are never installed without your action. If settings is closed while a download finishes, the app waits until you return and select **Install update**. An unsigned installer may still show a Windows security prompt; the digest checks download integrity and does not replace code signing.
 
 An existing 1.7.0 or older installation needs one manual install of the current version to gain working update checks; the 1.7.0 updater could not contact GitHub. Exit the old app from its tray menu before running that installer. Version 1.7.1 and later can update from within the app. Portable copies open the release page instead of silently installing to a different location.
 
-For a later release, update the assembly and installer version numbers in `src/AssemblyInfo.cs` and `installer/HolidayTimer.iss`, build and test the setup, and publish it as `HolidayTimerSetup.exe` on a non-prerelease GitHub release with a matching stable three-part tag such as `v1.9.5`. GitHub must expose the asset's SHA-256 digest before the app offers the release.
+For a later release, update the assembly and installer version numbers in `src/AssemblyInfo.cs` and `installer/HolidayTimer.iss`, build and test the setup, and publish it as `HolidayTimerSetup.exe` on a non-prerelease GitHub release with a matching stable three-part tag such as `v1.10.0`. GitHub must expose the asset's SHA-256 digest before the app offers the release.
 
 ## Music response
 
@@ -99,13 +99,15 @@ Click the calendar tray icon to show the countdown. Right-click for preferences,
 
 ## Celebrations
 
-When the actual target date and time arrives, the app automatically celebrates once for that selected target. This works independently of **Celebrate each morning**. If Windows is locked or suspended while the app is running, the celebration catches up after unlock or resume. When the app starts with an already-past target, it instead loads the next NSW public holiday. A future target with zero remaining working time does not trigger it early. Enable **Launch when I sign in** to let the app start automatically.
+At the selected time, the app celebrates once for that target. It waits for an available desktop if Windows is locked or asleep. On the holiday date, an enabled Day Zero reveal can also celebrate an arrival missed before sign-in. Older expired countdowns advance to the next NSW public holiday.
 
-Choose **Fireworks + confetti** for layered launches and glowing bursts, or **Flowers + confetti** for bouquets that launch upward like rockets, burst, then scatter falling petals and confetti. Both follow the selected scheme, font and default/custom text colour, keep the message area clear, and repeat until dismissed. Fireworks remains the default for existing preferences. **Preview celebration** tries the unsaved draft without recording an arrival or a morning greeting.
+Choose **Fireworks + confetti** for glowing shells, curved trails and falling embers, or **Flowers + confetti** for bouquets that rise and scatter petals. Both follow the selected scheme and play behind the text on your desktop until dismissed. **Preview celebration** tries your current selection.
 
-**Always animate celebrations**, in the Celebration tab, allows fireworks, flowers and confetti even when Windows animation effects are off. It defaults to On for new installations and older settings without this field. A saved Off value, including one saved by 1.9.3, remains Off. It applies to previews immediately and is remembered for morning and arrival celebrations after **Save countdown**. Its description explains when Windows animations are suppressing the effects. This override affects celebrations only; the orb, companions and Windows settings are unchanged. High Contrast always uses the text-only celebration.
+**Show the Day Zero starburst** opens a black fullscreen scene on the first sign-in or unlock on your saved holiday date. A particle ring beats for five seconds, gathers into a bright dot, then opens into one continuous outward burst over a sky of softly drifting galaxies. Move the pointer through **Today is the day!** to draw dust out of the letters, then move away to let it settle back. Press Escape on any screen to leave. **Preview Day Zero** plays the scene without marking the day's celebration as seen. If sign-in and arrival coincide, one reveal celebrates both.
 
-Each connected monitor gets its own transparent fullscreen celebration with centred text, sized for that display and its scaling. **Continue · Esc to close** on any monitor or Escape dismisses the whole group; Escape also works after focus moves elsewhere. Connecting or disconnecting a monitor rearranges the visible celebration without recording a new arrival. Hiding, minimizing or closing stops rendering and releases the temporary Escape shortcut as appropriate; app shutdown removes it. Reduced motion shows calm text unless the celebration override is enabled; High Contrast always shows calm text on every display. There is no sound.
+**Always animate celebrations** defaults to On for new installations and for older settings without this preference. If you previously saved Off, upgrading preserves that choice. The option plays celebration effects when Windows animation effects are off. High Contrast uses a text-only greeting.
+
+Fireworks and flowers appear on a transparent fullscreen overlay on every monitor. Day Zero uses a black backdrop, with the ring and message on the primary display. **Continue** or Escape on any monitor dismisses the whole group. The scenes are silent.
 
 Optionally enable **Celebrate each morning** for a greeting once per local calendar day between 5 am and noon, after login/unlock or while the app stays open. It waits while Windows is locked and stops scheduling new morning greetings after the target arrives. The morning greeting shows Days using the selected elapsed/workday basis. Arrival takes priority over a morning greeting or preview. The once-per-morning schedule is separate from the animation, which keeps playing until dismissed.
 
@@ -124,10 +126,10 @@ Preferences are stored at `%LOCALAPPDATA%\HolidayTimer\settings.json`, with the 
 Build and run isolated checks without replacing the preserved original:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 -Test -OutputDirectory dist\calendar-days
+powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 -Test -OutputDirectory dist\day-zero
 ```
 
-`dist/calendar-days/HolidayTimer.exe --render-preview` renders the actual WPF layouts into the updated build's `previews` folder without changing personal preferences or login registration. Layout captures use mock desktop backdrops; music examples use synthetic signals. Live Windows blur and actual audio capture have separate native evidence. See `VERIFICATION.md` for the current checks and evidence.
+`dist/day-zero/HolidayTimer.exe --render-preview` renders the actual WPF layouts into the updated build's `previews` folder without changing personal preferences or login registration. Layout captures use mock desktop backdrops; music examples use synthetic signals. Live Windows blur and actual audio capture have separate native evidence. See `VERIFICATION.md` for the current checks and evidence.
 
 To build the single-file setup and run the application and isolated installation checks:
 

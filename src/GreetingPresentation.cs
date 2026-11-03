@@ -8,6 +8,10 @@ using Forms = System.Windows.Forms;
 
 namespace HolidayTimer
 {
+    internal sealed class DisplayUnavailableException : InvalidOperationException
+    {
+        internal DisplayUnavailableException() : base("No display is available for the celebration.") { }
+    }
     // A greeting is one presentation group, with a separate transparent
     // window per physical display. Its message never crosses a monitor seam.
     internal sealed partial class HolidayApplication
@@ -50,7 +54,7 @@ namespace HolidayTimer
                 supplied = actual.ToArray();
             }
             if (supplied == null || supplied.Length == 0)
-                throw new InvalidOperationException("No display is available for the celebration.");
+                throw new DisplayUnavailableException();
             List<Rectangle> bounds = new List<Rectangle>();
             foreach (Rectangle value in supplied)
             {
@@ -61,10 +65,11 @@ namespace HolidayTimer
             return bounds.ToArray();
         }
 
-        private void PresentGreetings(AppSettings settings, DateTime now, bool animate)
+        private void PresentGreetings(AppSettings settings, DateTime now, bool animate, bool dayZero = false, double elapsed = 0, bool reflow = false)
         {
             Rectangle[] displays = GreetingDisplays();
             List<Window> prepared = new List<Window>();
+            DayZeroPlayback cinematic = dayZero ? new DayZeroPlayback(settings.AlwaysAnimateCelebrations, elapsed) : null;
             bool committed = false;
             try
             {
@@ -76,9 +81,10 @@ namespace HolidayTimer
                     prepared.Add(window);
                     window.ShowActivated = false;
                     window.Opacity = 0;
-                    Themes.Apply(window, settings.Theme, settings.BackgroundOpacity, settings.LightAppearance, settings.CountdownTextColour);
+                    Themes.Apply(window, settings.Theme, settings.BackgroundOpacity, !dayZero && settings.LightAppearance, settings.CountdownTextColour);
                     FontChoices.Apply(window, settings.DisplayFont);
-                    UpdateGreetingWindow(window, settings, now);
+                    if (cinematic == null) UpdateGreetingWindow(window, settings, now);
+                    else cinematic.Prepare(window, displays[0], bounds, prepared.Count - 1);
                     Layouts.Find<Button>(window, "GreetingDismiss").Click += delegate { CloseGreetings(); };
                     window.Closing += delegate { closingGreetingWindows.Add(window); };
                     window.Closed += GreetingClosed;
@@ -87,24 +93,29 @@ namespace HolidayTimer
                     window.DpiChanged += delegate { QueueGreetingSize(window); };
                     window.Show();
                     Celebration.FullScreen(window, bounds);
-                    SizeGreeting(window);
+                    if (!dayZero) SizeGreeting(window, window.RenderSize);
                     window.UpdateLayout();
                 }
 
-                CloseGreetings();
+                CloseGreetings(reflow);
                 greetingSettings = settings; greetingNow = now; greetingAnimate = animate;
                 greetingWindows.AddRange(prepared);
                 for (int i = 0; i < prepared.Count; i++) greetingBounds.Add(prepared[i], displays[i]);
                 Greeting = prepared[0];
+                dayZeroPlayback = cinematic;
                 committed = true;
                 for (int i = 0; i < prepared.Count; i++)
                 {
                     Window window = prepared[i];
                     CelebrationDismissal.Attach(window, i == 0 && desktopIntegration);
                     window.Opacity = 1;
-                    Celebration.Play(window, animate && desktopIntegration, settings.CelebrationEffect, settings.AlwaysAnimateCelebrations);
-                    Motion.Attach(window, desktopIntegration);
+                    if (!dayZero)
+                    {
+                        Celebration.Play(window, animate && desktopIntegration, settings.CelebrationEffect, settings.AlwaysAnimateCelebrations);
+                        Motion.Attach(window, desktopIntegration);
+                    }
                 }
+                if (cinematic != null) cinematic.Start();
                 Greeting.Activate();
             }
             catch
@@ -115,10 +126,18 @@ namespace HolidayTimer
             }
         }
 
-        internal void CloseGreetings()
+        internal void CloseGreetings() { CloseGreetings(false); }
+
+        private void CloseGreetings(bool keepDayZeroMarker)
         {
             if (closingGreetings) return;
             closingGreetings = true;
+            if (dayZeroPlayback != null)
+            {
+                dayZeroPlayback.Stop();
+                dayZeroPlayback = null;
+                if (!keepDayZeroMarker) ClearAutomaticDayZero();
+            }
             Window[] closing = greetingWindows.ToArray();
             greetingWindows.Clear(); greetingBounds.Clear();
             Greeting = null; greetingSettings = null;
@@ -134,6 +153,11 @@ namespace HolidayTimer
             if (Greeting == null || greetingSettings == null) return;
             // Rebuild only the presentation; neither daily nor arrival markers
             // belong here, so hot-plug/DPI changes cannot consume either event.
+            if (IsDayZeroOpen)
+            {
+                PresentGreetings(greetingSettings, greetingNow, greetingAnimate, true, dayZeroPlayback.Seconds, true);
+                return;
+            }
             PresentGreetings(greetingSettings, greetingNow, greetingAnimate);
         }
 
@@ -163,14 +187,15 @@ namespace HolidayTimer
                 Rectangle bounds;
                 if (!greetingBounds.TryGetValue(window, out bounds)) return;
                 Celebration.FullScreen(window, bounds);
-                SizeGreeting(window); window.UpdateLayout();
+                if (!IsDayZeroOpen) SizeGreeting(window, window.RenderSize);
+                window.UpdateLayout();
             }));
         }
 
-        private static void SizeGreeting(Window window)
+        internal static void SizeGreeting(Window window, System.Windows.Size viewport)
         {
-            double scale = Math.Max(.35, Math.Min(2.4, Math.Min(window.ActualWidth / 1440, window.ActualHeight / 900)));
-            Layouts.Find<StackPanel>(window, "GreetingMessage").MaxWidth = Math.Max(1, Math.Min(window.ActualWidth - 72, 850 * scale));
+            double scale = Math.Max(.35, Math.Min(2.4, Math.Min(viewport.Width / 1440, viewport.Height / 900)));
+            Layouts.Find<StackPanel>(window, "GreetingMessage").MaxWidth = Math.Max(1, Math.Min(viewport.Width - 72, 850 * scale));
             Layouts.Find<TextBlock>(window, "GreetingHeading").FontSize = 48 * scale;
             Layouts.Find<TextBlock>(window, "GreetingIntro").FontSize = 20 * scale;
             Layouts.Find<TextBlock>(window, "GreetingNumber").FontSize = 96 * scale;
@@ -183,7 +208,7 @@ namespace HolidayTimer
 
         internal void UpdateGreeting(DateTime now)
         {
-            if (Greeting == null || greetingSettings == null) return;
+            if (Greeting == null || greetingSettings == null || IsDayZeroOpen) return;
             greetingNow = now;
             foreach (Window window in greetingWindows) UpdateGreetingWindow(window, greetingSettings, now);
         }

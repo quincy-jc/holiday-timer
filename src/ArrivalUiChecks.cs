@@ -15,7 +15,7 @@ namespace HolidayTimer
         {
             return new AppSettings { IsConfigured = true, HolidayName = "The big moment",
                 TargetLocal = target.ToString(CountdownCalculator.TargetFormat, CultureInfo.InvariantCulture),
-                MorningGreeting = false, StartAtLogin = false, Unit = CountdownUnit.Seconds };
+                MorningGreeting = false, DayZeroEnabled = false, StartAtLogin = false, Unit = CountdownUnit.Seconds };
         }
 
         private static void CheckArrivalCelebrations(HolidayApplication app, SettingsStore store, string root, bool render)
@@ -123,6 +123,7 @@ namespace HolidayTimer
                 Check(app.GreetingWindows.Count == 3 && store.Load().LastArrivalTarget == app.Settings.TargetLocal,
                     "The first unlocked scheduling opportunity catches up a missed arrival once");
                 app.CloseGreetings();
+                CheckDayZeroScheduling(app, store);
             }
             finally
             {
@@ -132,6 +133,58 @@ namespace HolidayTimer
                 store.Save(original); app.RefreshCountdown();
                 if (wasEnabled) mainTimer.Start();
             }
+        }
+
+        private static void CheckDayZeroScheduling(HolidayApplication app, SettingsStore store)
+        {
+            DateTime target = DateTime.Today.AddDays(10).AddHours(17);
+            DateTime signIn = target.Date.AddHours(7);
+            app.Settings = ArrivalSettings(target); app.Settings.DayZeroEnabled = true; app.Settings.MorningGreeting = true;
+            store.Save(app.Settings);
+            app.SessionAvailable = false; app.ArmDayZeroSession(); app.ProcessCelebrations(signIn);
+            Check(!app.IsDayZeroOpen && store.Load().LastDayZeroDate == null,
+                "A locked desktop preserves the first-visible opportunity");
+            var readyDisplays = app.GreetingScreenBoundsProvider;
+            app.SessionAvailable = true;
+            app.GreetingScreenBoundsProvider = delegate { return new System.Drawing.Rectangle[0]; };
+            try
+            {
+                app.ProcessCelebrations(signIn);
+                Check(!app.IsDayZeroOpen && store.Load().LastDayZeroDate == null,
+                    "A delayed display at sign-in keeps the reveal pending");
+            }
+            finally { app.GreetingScreenBoundsProvider = readyDisplays; }
+            app.ProcessCelebrations(signIn.AddSeconds(3));
+            Check(app.IsDayZeroOpen && store.Load().LastDayZeroDate == signIn.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) &&
+                store.Load().LastArrivalTarget == null, "First visible tick opens day zero without marking a future arrival");
+            app.CloseGreetings(); app.Settings = store.Load(); app.ArmDayZeroSession(); app.ProcessCelebrations(signIn.AddMinutes(1));
+            Check(!app.IsDayZeroOpen && app.Greeting == null, "A second unlock after restart cannot open another morning overlay");
+            app.ProcessCelebrations(target);
+            Check(!app.IsDayZeroOpen && app.Greeting != null && store.Load().LastArrivalTarget == app.Settings.TargetLocal,
+                "Arrival at the selected time still runs after a dismissed day-zero reveal");
+            app.CloseGreetings();
+
+            target = target.AddDays(1); app.Settings = ArrivalSettings(target); app.Settings.DayZeroEnabled = true; store.Save(app.Settings);
+            DateTime late = target.AddMinutes(10);
+            Check(!app.EnsurePublicHolidayFallback(late, true), "Starting late on the event date retains the pending reveal");
+            app.ArmDayZeroSession(); app.ProcessCelebrations(late);
+            Check(app.IsDayZeroOpen && store.Load().LastArrivalTarget == app.Settings.TargetLocal,
+                "First unlock after arrival presents just the day-zero scene and persists both markers");
+            app.CloseGreetings(); app.ProcessCelebrations(late);
+            Check(!app.IsDayZeroOpen && app.Greeting == null && app.Settings.AutomaticPublicHoliday,
+                "After late-arrival dismissal the next holiday can load without another presentation");
+
+            target = target.AddDays(2);
+            app.Settings = ArrivalSettings(target); app.Settings.DayZeroEnabled = true; store.Save(app.Settings);
+            app.ProcessCelebrations(target.Date);
+            Check(app.Greeting == null, "A midnight timer tick on a continuously open desktop does not trigger the unlock scene");
+            app.ArmDayZeroSession(); app.ProcessCelebrations(target.AddSeconds(-2));
+            Window active = app.Greeting;
+            app.ProcessCelebrations(target);
+            Check(active != null && app.Greeting == active && app.IsDayZeroOpen &&
+                store.Load().LastArrivalTarget == app.Settings.TargetLocal,
+                "A target reached during the automatic reveal uses that same presentation");
+            app.CloseGreetings();
         }
     }
 }

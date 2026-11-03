@@ -1,9 +1,9 @@
 param(
     [switch]$Test,
     [switch]$SkipAppBuild,
-    [string]$PayloadDirectory = 'dist\calendar-days',
-    [string]$OutputDirectory = 'dist\calendar-days-setup',
-    [string]$MetadataDirectory = 'dist\calendar-days-setup-verification',
+    [string]$PayloadDirectory = 'dist\day-zero',
+    [string]$OutputDirectory = 'dist\day-zero-setup',
+    [string]$MetadataDirectory = 'dist\day-zero-setup-verification',
     [string]$CompilerPath = 'tools\inno-6.7.3\ISCC.exe',
     [switch]$IsolationTest,
     [string]$TestRoot

@@ -27,7 +27,6 @@ namespace HolidayTimer
         internal static CelebrationKind? CurrentKind(Window window) { RunState state; return Runs.TryGetValue(window, out state) ? (CelebrationKind?)state.Kind : null; }
         internal static bool? MotionOverride(Window window) { RunState state; return Runs.TryGetValue(window, out state) ? (bool?)state.AlwaysAnimate : null; }
         internal static Color[] BaseColours(Window window) { RunState state; return Runs.TryGetValue(window, out state) ? (Color[])state.Colours.Clone() : new Color[0]; }
-        internal static Rect MessageClearance(Window window) { RunState state; return Runs.TryGetValue(window, out state) ? state.Clearance : Rect.Empty; }
         internal static int CachedResourceCount(Window window) { RunState state; return Runs.TryGetValue(window, out state) ? state.CachedResourceCount : 0; }
 
         [DllImport("user32.dll", SetLastError = true)]
@@ -139,7 +138,6 @@ namespace HolidayTimer
             internal readonly Layer Surface = new Layer();
             internal bool Attached;
             internal long Frames;
-            internal Rect Clearance;
             private readonly Stopwatch clock = new Stopwatch();
             private readonly Dictionary<int, Brush> inks = new Dictionary<int, Brush>();
             private readonly Dictionary<int, Pen> pens = new Dictionary<int, Pen>();
@@ -148,7 +146,6 @@ namespace HolidayTimer
             private readonly double[] random = new double[1600];
             private double lastFrame = -1;
             private double width, height, scale;
-            private Geometry safeClip;
             internal int CachedResourceCount { get { return inks.Count + pens.Count + glows.Count + petalPaint.Length; } }
             internal RunState(Window window, Canvas canvas, CelebrationKind kind, bool alwaysAnimate)
             {
@@ -197,27 +194,20 @@ namespace HolidayTimer
             internal void Paint(double time)
             {
                 double nextWidth = Canvas.ActualWidth, nextHeight = Canvas.ActualHeight;
-                Rect nextClearance = ClearMessage(Window, Canvas, nextWidth, nextHeight);
-                if (width != nextWidth || height != nextHeight || Clearance != nextClearance)
+                if (width != nextWidth || height != nextHeight)
                 {
-                    width = nextWidth; height = nextHeight; Clearance = nextClearance;
+                    width = nextWidth; height = nextHeight;
                     scale = Math.Max(.6, Math.Min(2.2, Math.Min(width / 1440, height / 900)));
                     Surface.Width = width; Surface.Height = height;
-                    GeometryGroup clip = new GeometryGroup { FillRule = FillRule.EvenOdd };
-                    clip.Children.Add(new RectangleGeometry(new Rect(0, 0, width, height)));
-                    if (!Clearance.IsEmpty) clip.Children.Add(new RectangleGeometry(Clearance));
-                    clip.Freeze(); safeClip = clip;
                 }
                 using (DrawingContext draw = Surface.Open())
                 {
-                    draw.PushClip(safeClip);
                     double phase = (time % CycleSeconds + WarmStartSeconds) % CycleSeconds;
                     // Keep the older cohort behind the newer one. At a wrap,
                     // the old current cohort simply becomes the previous one;
                     // new arrivals have zero opacity or start below the frame.
                     Sequence(draw, phase + CycleSeconds);
                     Sequence(draw, phase);
-                    draw.Pop();
                 }
                 Frames++;
             }
@@ -230,52 +220,100 @@ namespace HolidayTimer
 
             private void Fireworks(DrawingContext draw, double time)
             {
-                // Different planes open in a rhythm, rather than all at once.
-                double[] xs = { .16, .84, .47, .08, .92, .28, .72, .50, .15, .86 };
-                double[] ys = { .27, .25, .10, .57, .56, .13, .11, .08, .28, .27 };
-                double[] births = { 1.0, 1.48, 2.1, 2.58, 2.94, 3.48, 3.95, 4.36, 4.78, 5.05 };
-                for (int burst = 0; burst < births.Length; burst++)
+                for (int burst = 0; burst < ShellBirth.Length; burst++)
                 {
-                    double birth = births[burst], age = time - birth;
-                    Point center = new Point(width * xs[burst], height * ys[burst]);
+                    double age = time - ShellBirth[burst];
+                    if (age <= -.98 || age > 3) continue;
+                    Point center = new Point(width * ShellX[burst], height * ShellY[burst]);
                     int colour = burst % Colours.Length;
-                    double radius = Math.Min(290 * scale, Math.Min(width, height) * (burst % 3 == 0 ? .225 : .18));
-                    if (age < 0 && age > -.98) Launch(draw, center, time - birth + .98, colour, burst);
-                    if (age < 0 || age > 2.55) continue;
-                    double fade = Math.Pow(1 - Unit(age / 2.55), 1.45);
-                    double core = Math.Exp(-age * 11);
-                    Glow(draw, center, radius * (.34 + Unit(age) * .25), colour, .22 * Math.Exp(-age * 2.2));
-                    Glow(draw, center, 26 * scale, colour + 3, core * .75);
-                    draw.DrawEllipse(Ink(colour + 3, core), null, center, (2.5 + core * 6) * scale, (2.5 + core * 6) * scale);
-                    const int sparks = 84;
-                    for (int i = 0; i < sparks; i++)
-                    {
-                        double sparkAge = age - (i % 4) * .016;
-                        if (sparkAge < 0) continue;
-                        int seed = burst * 84 + i;
-                        double depth = (1 - 2.0 * (i + .5) / sparks);
-                        double plane = Math.Sqrt(1 - depth * depth);
-                        double angle = i * 2.39996323 + burst * .73;
-                        double reach = radius * (.70 + random[seed] * .35) * plane * (1 + depth * .12);
-                        Point head = SparkPosition(center, angle, reach, sparkAge);
-                        double opacity = fade * (.45 + (depth + 1) * .275) * Avoid(head, 9 * scale);
-                        double size = (.7 + (depth + 1) * .75) * scale;
-                        for (int tail = 5; tail >= 1; tail--)
-                        {
-                            double a = Math.Max(0, sparkAge - tail * .048), b = Math.Max(0, sparkAge - (tail - 1) * .048);
-                            Point from = SparkPosition(center, angle, reach, a), to = SparkPosition(center, angle, reach, b);
-                            draw.DrawLine(PenFor(colour, opacity * (1 - tail * .14), size * .72), from, to);
-                        }
-                        if (i % 3 == 0) Glow(draw, head, size * 4.8, colour, opacity * .5);
-                        draw.DrawEllipse(Ink(colour + (i % 7 == 0 ? 3 : 0), opacity), null, head, size, size);
-                    }
+                    if (age < 0) { Launch(draw, center, age + .98, colour, burst); continue; }
+                    double radius = Math.Min(325 * scale, Math.Min(width, height) * ShellRadius[burst]);
+                    double flash = Math.Exp(-age * 8);
+                    Glow(draw, center, radius * (.68 + .25 * age), colour, .66 * Math.Exp(-age * 2.8));
+                    Glow(draw, center, scale * (33 + 26 * flash), colour + 3, .96 * flash);
+                    if (flash > .025)
+                        draw.DrawEllipse(Ink(colour + 3, flash), null, center, (2 + 5 * flash) * scale, (2 + 5 * flash) * scale);
+                    // The shell is painted back to front. Its foreshortened rear
+                    // sparks stay small and dim behind the larger near trails.
+                    foreach (ShellStar star in Shells[burst]) DrawStar(draw, center, radius, colour, age, star);
                 }
             }
-            private Point SparkPosition(Point center, double angle, double reach, double age)
+            private static readonly double[] ShellX = { .16, .84, .47, .08, .92, .28, .72, .50, .15, .86 };
+            private static readonly double[] ShellY = { .27, .25, .10, .57, .56, .13, .11, .08, .28, .27 };
+            private static readonly double[] ShellBirth = { 1.0, 1.48, 2.1, 2.58, 2.94, 3.48, 3.95, 4.36, 4.78, 5.05 };
+            private static readonly double[] ShellRadius = { .27, .21, .17, .23, .17, .25, .20, .18, .25, .29 };
+            private static readonly ShellStar[][] Shells = BuildShells();
+            private struct ShellStar
             {
-                double travel = 1 - Math.Exp(-age * 2.0);
-                return new Point(center.X + Math.Cos(angle) * reach * travel,
-                    center.Y + Math.Sin(angle) * reach * travel + 58 * scale * age * age);
+                internal double X, Y, Z, Gravity, Wind, Delay, Life, Trail, Size, Glimmer;
+            }
+            private static ShellStar[][] BuildShells()
+            {
+                Random seed = new Random(8713);
+                ShellStar[][] shells = new ShellStar[ShellBirth.Length][];
+                for (int burst = 0; burst < shells.Length; burst++)
+                {
+                    bool willow = burst % 3 == 0;
+                    int count = willow ? 72 : 88;
+                    shells[burst] = new ShellStar[count];
+                    for (int i = 0; i < count; i++)
+                    {
+                        double z = 2.0 * (i + .5) / count - 1;
+                        double angle = i * 2.39996323 + burst * .73 + (seed.NextDouble() - .5) * .29;
+                        double reach = (.79 + seed.NextDouble() * .28) * Math.Sqrt(1 - z * z);
+                        // Short-burning inner stars give the peony a second shell.
+                        bool inner = !willow && i % 3 == 0;
+                        if (inner) reach *= .52;
+                        shells[burst][i] = new ShellStar {
+                            X = Math.Cos(angle) * reach, Y = Math.Sin(angle) * reach,
+                            Z = z, Gravity = (willow ? .33 : .22) + seed.NextDouble() * .12,
+                            Wind = .026 + seed.NextDouble() * .026, Delay = seed.NextDouble() * (inner ? .14 : .055),
+                            Life = (willow ? 2.1 : inner ? .80 : 1.25) + seed.NextDouble() * .72,
+                            Trail = (willow ? .53 : .25) + seed.NextDouble() * .15,
+                            Size = (.78 + (z + 1) * .66) * (.77 + seed.NextDouble() * .44),
+                            Glimmer = seed.NextDouble() * 2 * Math.PI
+                        };
+                    }
+                }
+                return shells;
+            }
+            private static Point SparkPosition(Point center, double radius, ShellStar star, double age)
+            {
+                double travel = 1 - Math.Exp(-2.1 * age);
+                double projection = 1 / (1 - .32 * star.Z * travel);
+                double fall = age * age / (1 + .35 * age);
+                return new Point(center.X + radius * (star.X * travel * projection + star.Wind * fall),
+                    center.Y + radius * (star.Y * travel * projection + star.Gravity * fall));
+            }
+            private void DrawStar(DrawingContext draw, Point center, double radius, int colour, double shellAge, ShellStar star)
+            {
+                double age = shellAge - star.Delay;
+                if (age < 0 || age >= star.Life) return;
+                Point head = SparkPosition(center, radius, star, age);
+                double cool = Unit(age / star.Life);
+                double glimmer = 1 - .19 * cool * (1 + Math.Sin(age * 14 + star.Glimmer));
+                double opacity = (.65 + .35 * star.Z) * Unit((star.Life - age) / .47) * glimmer;
+                if (opacity < .035) return;
+                double size = star.Size * scale;
+                // The tail records where the ember actually travelled, so it
+                // bends with gravity instead of rotating a straight ray.
+                Point tip = head;
+                for (int i = 0; i < 5; i++)
+                {
+                    double previousTime = Math.Max(0, age - (i + 1) * star.Trail / 5);
+                    Point tail = SparkPosition(center, radius, star, previousTime);
+                    double taper = 1 - i * .19;
+                    double thickness = Math.Max(.25, Math.Round(size * taper * .83 * 4) / 4);
+                    draw.DrawLine(PenFor(colour, opacity * taper * .90, thickness), tail, tip);
+                    if (i == 0 && star.Z > 0)
+                        draw.DrawLine(PenFor(colour + 3, opacity * (1 - .7 * cool), thickness * .55), tail, tip);
+                    tip = tail;
+                    if (previousTime == 0) break;
+                }
+                Glow(draw, head, size * (star.Z > 0 ? 8 : 5), colour, opacity * .94);
+                draw.DrawEllipse(Ink(colour, opacity), null, head, size, size);
+                double core = size * (.64 - .27 * cool);
+                draw.DrawEllipse(Ink(colour + 3, opacity * (1 - .58 * cool)), null, head, core, core);
             }
             private void Launch(DrawingContext draw, Point center, double age, int colour, int burst)
             {
@@ -285,12 +323,11 @@ namespace HolidayTimer
                 {
                     double p = Math.Max(0, progress - i * .024), q = Math.Max(0, progress - (i + 1) * .024);
                     Point head = Rocket(start, center, p), tail = Rocket(start, center, q);
-                    draw.DrawLine(PenFor(colour + 3, (1 - i / 10.0) * .68 * Avoid(head, 15), 1.8 * scale), tail, head);
+                    draw.DrawLine(PenFor(colour + 3, (1 - i / 10.0) * .68, 1.8 * scale), tail, head);
                 }
                 Point rocket = Rocket(start, center, progress);
-                double opacity = Avoid(rocket, 20);
-                Glow(draw, rocket, 14 * scale, colour, .8 * opacity);
-                draw.DrawEllipse(Ink(colour + 3, opacity), null, rocket, 2.2 * scale, 3.3 * scale);
+                Glow(draw, rocket, 14 * scale, colour, .8);
+                draw.DrawEllipse(Ink(colour + 3, 1), null, rocket, 2.2 * scale, 3.3 * scale);
             }
             private static Point Rocket(Point start, Point finish, double progress)
             {
@@ -317,7 +354,7 @@ namespace HolidayTimer
                         double progress = Unit((age + 1.06) / 1.06);
                         Point start = new Point(width * (i % 2 == 0 ? .075 : .925), height * 1.08);
                         Point position = Rocket(start, center, progress);
-                        double fade = Unit(progress * 4) * Avoid(position, 64 * scale);
+                        double fade = Unit(progress * 4);
                         Bouquet(draw, position, (.75 + .20 * progress) * scale, (i % 2 == 0 ? -1 : 1) * (65 - progress * 88), fade, i);
                         continue;
                     }
@@ -339,7 +376,7 @@ namespace HolidayTimer
                         Point position = new Point(center.X + Math.Cos(angle) * distance * travel + Math.Sin(petalAge * 3.3 + petal) * 10 * scale,
                             center.Y + Math.Sin(angle) * distance * travel + 42 * scale * petalAge * petalAge);
                         double size = (10 + (depth + 1) * 5.5) * scale;
-                        double fade = Unit(petalAge / .08) * Unit((life - petalAge) / .66) * (.46 + (depth + 1) * .24) * Avoid(position, size * 1.3);
+                        double fade = Unit(petalAge / .08) * Unit((life - petalAge) / .66) * (.46 + (depth + 1) * .24);
                         if (fade < .01) continue;
                         draw.PushOpacity(fade);
                         draw.PushTransform(new TranslateTransform(position.X, position.Y));
@@ -428,7 +465,7 @@ namespace HolidayTimer
                     double y = height * .96 - height * (.42 + random[i + 700] * .30) * age + height * .115 * age * age + Math.Sin(age * 2 + i) * 10 * depth;
                     Point position = new Point(x, y);
                     double size = (3.2 + depth * 5.8) * scale;
-                    double opacity = Unit(age / .12) * Math.Pow(Unit((life - age) / .9), 1.2) * (.4 + depth * .47) * Avoid(position, size * 2);
+                    double opacity = Unit(age / .12) * Math.Pow(Unit((life - age) / .9), 1.2) * (.4 + depth * .47);
                     if (opacity <= .01 || x < -25 || x > width + 25 || y < -25 || y > height + 25) continue;
                     draw.PushOpacity(opacity);
                     draw.PushTransform(new TranslateTransform(x, y));
@@ -441,8 +478,6 @@ namespace HolidayTimer
                 }
             }
 
-            private double Avoid(Point point, double extent)
-            { return Clearance.IsEmpty ? 1 : Unit((Distance(point, Clearance) - extent) / (25 * scale)); }
             private Brush Ink(int colour, double opacity)
             {
                 int alpha = (int)Math.Round(Unit(opacity) * 20), key = colour * 32 + alpha;
@@ -481,23 +516,6 @@ namespace HolidayTimer
             }
         }
 
-        private static Rect ClearMessage(Window window, Canvas canvas, double width, double height)
-        {
-            FrameworkElement message = window.FindName("GreetingMessage") as FrameworkElement;
-            if (message != null && message.ActualWidth > 0 && message.ActualHeight > 0)
-            {
-                try { Rect result = new Rect(message.TranslatePoint(new Point(), canvas), message.RenderSize); result.Inflate(20, 16); return result; }
-                catch (InvalidOperationException) { }
-            }
-            return new Rect(width * .30, height * .28, width * .40, height * .46);
-        }
-        private static double Distance(Point point, Rect rect)
-        {
-            if (rect.IsEmpty) return Double.PositiveInfinity;
-            double dx = Math.Max(Math.Max(rect.Left - point.X, 0), point.X - rect.Right);
-            double dy = Math.Max(Math.Max(rect.Top - point.Y, 0), point.Y - rect.Bottom);
-            return Math.Sqrt(dx * dx + dy * dy);
-        }
         private static double Unit(double value) { return Math.Max(0, Math.Min(1, value)); }
         private static double Ease(double value) { return 1 - Math.Pow(1 - Unit(value), 3); }
         private static Color Mix(Color a, Color b, double ratio)

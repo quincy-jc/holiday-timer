@@ -1,0 +1,141 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Windows;
+using System.Windows.Automation;
+using System.Windows.Controls;
+using System.Windows.Media;
+using Rectangle = System.Drawing.Rectangle;
+
+namespace HolidayTimer
+{
+    internal sealed partial class HolidayApplication
+    {
+        private DayZeroPlayback dayZeroPlayback;
+        internal string StandalonePreview;
+        private void StartStandalonePreview()
+        {
+            ShutdownMode = ShutdownMode.OnLastWindowClose;
+            Resources.MergedDictionaries.Add(Layouts.LoadControls());
+            if (StandalonePreview == "--preview-day-zero") ShowDayZero(Settings);
+            else
+            {
+                DateTime now = DateTime.Now;
+                Settings.HolidayName = "Your holiday";
+                Settings.TargetLocal = now.ToString(CountdownCalculator.TargetFormat, System.Globalization.CultureInfo.InvariantCulture);
+                ShowGreeting(Settings, now);
+            }
+        }
+        internal bool IsDayZeroOpen { get { return dayZeroPlayback != null; } }
+        internal double DayZeroElapsed { get { return dayZeroPlayback == null ? 0 : dayZeroPlayback.Seconds; } }
+
+        private void ShowDayZero(AppSettings settings)
+        {
+            PresentGreetings(settings, DateTime.Now, true, true);
+        }
+    }
+
+    // One clock for all monitors, starting when each window has presented its opening frame.
+    internal sealed class DayZeroPlayback
+    {
+        private readonly List<DayZeroScene> scenes = new List<DayZeroScene>();
+        private readonly bool alwaysAnimate;
+        private TextBlock staticMessage;
+        private int presented;
+        private bool active, rendering;
+        private TimeSpan? previousFrame;
+        internal double Seconds { get; private set; }
+
+        internal DayZeroPlayback(bool alwaysAnimate, double elapsed)
+        { this.alwaysAnimate = alwaysAnimate; Seconds = elapsed; }
+
+        internal void Prepare(Window window, Rectangle main, Rectangle bounds, int index)
+        {
+            window.Title = "Today is the day! — Holiday Timer";
+            window.AllowsTransparency = false;
+            window.Background = Brushes.Black;
+            Grid root = (Grid)window.Content;
+            Layouts.Find<StackPanel>(window, "GreetingMessage").Visibility = Visibility.Collapsed;
+            Button dismiss = Layouts.Find<Button>(window, "GreetingDismiss");
+            dismiss.Content = "Continue   ·   Esc";
+            dismiss.FontSize = 12;
+            dismiss.Foreground = Brushes.White;
+            dismiss.Background = Brushes.Black;
+            dismiss.Margin = new Thickness(0, 0, 0, 16);
+            DayZeroScene scene = new DayZeroScene();
+            Color accent = ((SolidColorBrush)window.Resources["Accent"]).Color;
+            scene.Configure(index == 0, 419 + index * 113, accent);
+            scene.SetOrigin(new Point((main.Left + main.Width * .5 - bounds.Left) / bounds.Width,
+                (main.Top + main.Height * .5 - bounds.Top) / bounds.Height));
+            AutomationProperties.SetName(scene, "Today is the day!");
+            root.Children.Insert(0, scene);
+            scenes.Add(scene);
+            if (index == 0)
+            {
+                staticMessage = new TextBlock { Text = "Today is the day!", Foreground = Brushes.White,
+                    FontSize = 42, FontWeight = FontWeights.SemiBold, TextAlignment = TextAlignment.Center,
+                    TextWrapping = TextWrapping.Wrap, HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
+                root.Children.Insert(1, staticMessage);
+            }
+            window.MouseMove += delegate(object sender, System.Windows.Input.MouseEventArgs e)
+            { if (rendering) scene.SetPointer(e.GetPosition(scene)); };
+            window.MouseLeave += delegate { scene.SetPointer(null); };
+            window.ContentRendered += delegate { presented++; };
+            scene.SetFrame(Seconds, false);
+        }
+
+        internal void Start()
+        {
+            active = true;
+            SystemParameters.StaticPropertyChanged += PreferenceChanged;
+            ApplyMotionPreference();
+        }
+
+        private void PreferenceChanged(object sender, PropertyChangedEventArgs args)
+        {
+            if (!active || scenes.Count == 0) return;
+            scenes[0].Dispatcher.BeginInvoke(new Action(delegate { if (active) ApplyMotionPreference(); }));
+        }
+
+        private void ApplyMotionPreference()
+        {
+            bool motion = Celebration.AnimationAllowed(SystemParameters.ClientAreaAnimation,
+                SystemParameters.HighContrast, alwaysAnimate);
+            if (motion != rendering)
+            {
+                rendering = motion;
+                previousFrame = null;
+                if (motion) CompositionTarget.Rendering += Render;
+                else CompositionTarget.Rendering -= Render;
+            }
+            staticMessage.Visibility = motion ? Visibility.Collapsed : Visibility.Visible;
+            foreach (DayZeroScene scene in scenes)
+            {
+                scene.Visibility = motion ? Visibility.Visible : Visibility.Hidden;
+                scene.SetFrame(Seconds, !motion);
+            }
+        }
+
+        private void Render(object sender, EventArgs args)
+        {
+            if (presented < scenes.Count) return;
+            TimeSpan now = ((RenderingEventArgs)args).RenderingTime;
+            if (!previousFrame.HasValue || now < previousFrame.Value) { previousFrame = now; return; }
+            double delta = (now - previousFrame.Value).TotalSeconds;
+            if (delta < 1.0 / 32) return;
+            // A delayed desktop frame should hold the opening, not skip the entire reveal.
+            Seconds += Math.Min(delta, .1);
+            previousFrame = now;
+            foreach (DayZeroScene scene in scenes) scene.SetFrame(Seconds, false);
+        }
+
+        internal void Stop()
+        {
+            active = false;
+            SystemParameters.StaticPropertyChanged -= PreferenceChanged;
+            if (rendering) CompositionTarget.Rendering -= Render;
+            rendering = false;
+        }
+    }
+}

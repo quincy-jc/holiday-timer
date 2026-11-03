@@ -46,6 +46,8 @@ namespace HolidayTimer
         [DataMember] public double? WidgetTop { get; set; }
         [DataMember] public string LastGreetingDate { get; set; }
         [DataMember] public string LastArrivalTarget { get; set; }
+        [DataMember] public bool DayZeroEnabled { get; set; }
+        [DataMember] public string LastDayZeroDate { get; set; }
         [DataMember] public bool IsConfigured { get; set; }
         [DataMember] public bool AutomaticPublicHoliday { get; set; }
         [DataMember] public string PublicHolidayKey { get; set; }
@@ -109,6 +111,7 @@ namespace HolidayTimer
             WidgetTop = null;
             LastGreetingDate = null;
             LastArrivalTarget = null;
+            DayZeroEnabled = true;
             IsConfigured = false;
             AutomaticPublicHoliday = false;
             PublicHolidayKey = null;
@@ -241,6 +244,19 @@ namespace HolidayTimer
             {
                 return false;
             }
+        }
+    }
+
+    internal static class DayZeroPolicy
+    {
+        internal static bool Pending(AppSettings settings, DateTime localNow)
+        {
+            if (settings == null || !settings.IsConfigured || !settings.DayZeroEnabled) return false;
+            string day = localNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            if (settings.LastDayZeroDate == day) return false;
+            try { return CountdownCalculator.ToLocalTarget(settings.TargetLocal).Date == localNow.Date; }
+            catch (FormatException) { return false; }
+            catch (ArgumentException) { return false; }
         }
     }
 

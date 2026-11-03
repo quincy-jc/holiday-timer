@@ -53,6 +53,8 @@ namespace HolidayTimer
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
+            if (StandalonePreview != null) { StartStandalonePreview(); return; }
+            ArmDayZeroSession();
             Initialize();
             if (!Settings.IsConfigured)
             {
@@ -274,7 +276,8 @@ namespace HolidayTimer
                 MorningGreeting = Layouts.Find<CheckBox>(form, "MorningGreeting").IsChecked == true,
                 LightAppearance = Layouts.Find<CheckBox>(form, "LightAppearance").IsChecked == true,
                 WidgetLeft = previewLeft ?? Settings.WidgetLeft, WidgetTop = previewTop ?? Settings.WidgetTop,
-                LastGreetingDate = Settings.LastGreetingDate, LastArrivalTarget = Settings.LastArrivalTarget, IsConfigured = true,
+                LastGreetingDate = Settings.LastGreetingDate, LastArrivalTarget = Settings.LastArrivalTarget,
+                LastDayZeroDate = Settings.LastDayZeroDate, IsConfigured = true,
                 AutomaticPublicHoliday = Settings.AutomaticPublicHoliday && name == Settings.HolidayName && targetText == Settings.TargetLocal,
                 PublicHolidayKey = PublicHolidayKeyForDraft(name, targetText)
             };
@@ -553,7 +556,8 @@ namespace HolidayTimer
 
         internal bool CheckMorning(DateTime now)
         {
-            if (quitting || !SessionAvailable || !MorningPolicy.ShouldShow(Settings, now) || SettingsWindow != null || Greeting != null ||
+            if (quitting || !SessionAvailable || !MorningPolicy.ShouldShow(Settings, now) || DayZeroPolicy.Pending(Settings, now) ||
+                SettingsWindow != null || Greeting != null || IsDayZeroOpen ||
                 (desktopIntegration && !DesktopSession.IsUnlocked())) return false;
             // Mark before opening so an unlock and a timer tick cannot open duplicate greetings.
             Settings.LastGreetingDate = now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
@@ -586,9 +590,12 @@ namespace HolidayTimer
             Dispatcher.BeginInvoke(new Action(delegate
             {
                 if (reason == SessionSwitchReason.SessionLock || reason == SessionSwitchReason.RemoteDisconnect || reason == SessionSwitchReason.ConsoleDisconnect)
+                {
                     SessionAvailable = false;
+                    if (IsDayZeroOpen) CloseGreetings();
+                }
                 else if (reason == SessionSwitchReason.SessionUnlock || reason == SessionSwitchReason.SessionLogon || reason == SessionSwitchReason.RemoteConnect || reason == SessionSwitchReason.ConsoleConnect)
-                    SessionAvailable = true;
+                { SessionAvailable = true; ArmDayZeroSession(); }
                 RefreshCountdown(); ProcessCelebrations(DateTime.Now);
             }));
         }
@@ -597,7 +604,7 @@ namespace HolidayTimer
         private void QueueRefresh()
         {
             if (quitting || Dispatcher.HasShutdownStarted) return;
-            Dispatcher.BeginInvoke(new Action(delegate { RefreshCountdown(); ProcessCelebrations(DateTime.Now); }));
+            Dispatcher.BeginInvoke(new Action(delegate { ArmDayZeroSession(); RefreshCountdown(); ProcessCelebrations(DateTime.Now); }));
         }
         private void OnDisplaySettingsChanged(object sender, EventArgs e)
         {
@@ -632,6 +639,6 @@ namespace HolidayTimer
             Shutdown();
         }
         protected override void OnExit(ExitEventArgs e)
-        { if (!quitting) ExitApp(); base.OnExit(e); }
+        { if (!quitting && StandalonePreview == null) ExitApp(); base.OnExit(e); }
     }
 }

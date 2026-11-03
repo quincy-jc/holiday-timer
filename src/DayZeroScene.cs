@@ -1,0 +1,737 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Windows;
+using System.Windows.Automation;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+
+namespace HolidayTimer
+{
+    // Time is supplied by the host after the desktop is visible. A monitor can
+    // join at any frame, and an offscreen preview can seek without a live timer.
+    internal sealed class DayZeroScene : FrameworkElement
+    {
+        private const double Tau = Math.PI * 2;
+        private const double BurstTime = 8.45;
+        private const double BurstDuration = 7.4;
+        private const double TitleStart = 13.0;
+        // Different diffraction spikes ignite at different times. During
+        // release their tails lift free of the core and run off the frame.
+        private static readonly double[] JetAngle = { -90, 0, 165, -55, 71, -147, 28, 113, -20 };
+        private static readonly double[] JetDelay = { .03, .25, .46, .22, .69, .82, .60, .95, 1.04 };
+        private static readonly double[] JetReach = { .80, .58, .74, .57, .36, .48, .70, .43, .51 };
+        private static readonly double[] JetWidth = { 5, 4, 11, 3, 4, 3, 8, 3, 3 };
+        private const string Message = "Today is the day!";
+        private const int Shades = 20;
+        private const int Tints = 4;
+        private readonly Brush[,] inks = new Brush[Tints, Shades];
+        private readonly Pen[,,] lines = new Pen[Tints, Shades, 4];
+        private readonly Brush[] bloom = new Brush[Tints];
+        private readonly Color[] palette = new Color[Tints];
+        private readonly Star[] stars = new Star[630];
+        private readonly Star[] rays = new Star[1400];
+        private BitmapSource ringBody, ringDust, titleImage, flareFan;
+        private BitmapSource deepSky;
+        private readonly GalaxySprite[] galaxies = new GalaxySprite[4];
+        private BitmapSource[] wholeTitleTiles, anchorTiles;
+        private bool[] movingTile;
+        private Point[] grainOffsets;
+        private const int TileWidth = 54;
+        private double lastTitleFrame = -1;
+        private BitmapSource jetStamp;
+        private TitleGrain[] titleGrains;
+        private bool primary = true, still, configured;
+        private Point origin = new Point(.5, .5);
+        private Point? pointer;
+        private double seconds;
+
+        private struct Star
+        {
+            internal double X, Y, Depth, Phase, Drift, Speed, Delay;
+            internal int Tint;
+        }
+
+        private struct TitleGrain
+        {
+            internal double X, Y, Reach, Theta, Delay, Weight, Light;
+            internal int Tint;
+        }
+
+        private struct GalaxySprite
+        {
+            internal BitmapSource Image;
+            internal Rect Bounds;
+        }
+
+        internal DayZeroScene()
+        {
+            ClipToBounds = true;
+            Focusable = false;
+            AutomationProperties.SetName(this, Message);
+        }
+
+        internal void Configure(bool primary, int seed, Color accent)
+        {
+            this.primary = primary;
+            palette[0] = Mix(Color.FromRgb(182, 206, 236), accent, .23);
+            palette[1] = Mix(Color.FromRgb(255, 210, 150), accent, .22);
+            palette[2] = Mix(Colors.White, accent, .41);
+            palette[3] = Color.FromRgb(255, 251, 240);
+            for (int k = 0; k < Tints; k++)
+            {
+                bloom[k] = Halo(palette[k]);
+                for (int a = 0; a < Shades; a++)
+                {
+                    Color c = palette[k]; c.A = (byte)(255 * a / (Shades - 1));
+                    Brush brush = new SolidColorBrush(c); brush.Freeze(); inks[k, a] = brush;
+                    for (int s = 0; s < 4; s++)
+                    {
+                        Pen pen = new Pen(brush, .65 + s * s * .54);
+                        pen.Freeze(); lines[k, a, s] = pen;
+                    }
+                }
+            }
+            Random random = new Random(seed);
+            for (int i = 0; i < stars.Length; i++)
+                stars[i] = new Star { X = random.NextDouble(), Y = random.NextDouble(),
+                    Depth = random.NextDouble(), Phase = Tau * random.NextDouble(),
+                    Drift = random.NextDouble(), Speed = .58 + random.NextDouble() * .97,
+                    Delay = random.NextDouble(), Tint = random.Next(Tints) };
+            Random raySeed = new Random(seed ^ 7319);
+            for (int i = 0; i < rays.Length; i++)
+            {
+                double depth = raySeed.NextDouble();
+                rays[i] = new Star { X = raySeed.NextDouble(), Y = raySeed.NextDouble(),
+                    Depth = depth, Speed = (.17 + 1.84 * depth * depth) * (.82 + .36 * raySeed.NextDouble()),
+                    Tint = raySeed.Next(Tints) };
+            }
+            deepSky = CreateDeepSky(seed);
+            if (primary)
+            {
+                ringBody = CreateRing(random, false); ringDust = CreateRing(random, true);
+                CreateTitle(random);
+                flareFan = CreateFlareFan();
+            }
+            configured = true;
+            InvalidateVisual();
+        }
+
+        internal void SetOrigin(Point normalizedOrigin)
+        {
+            origin = normalizedOrigin;
+            InvalidateVisual();
+        }
+
+        internal void SetPointer(Point? localPoint)
+        {
+            pointer = localPoint;
+            if (!still && seconds > BurstTime) InvalidateVisual();
+        }
+
+        internal void SetFrame(double elapsedSeconds, bool reducedMotion)
+        {
+            seconds = Double.IsNaN(elapsedSeconds) || Double.IsInfinity(elapsedSeconds) ? 0 : Math.Max(0, elapsedSeconds);
+            still = reducedMotion;
+            InvalidateVisual();
+        }
+
+        protected override void OnRender(DrawingContext dc)
+        {
+            base.OnRender(dc);
+            double actualW = ActualWidth, actualH = ActualHeight;
+            if (actualW < 1 || actualH < 1) return;
+            dc.DrawRectangle(Brushes.Black, null, new Rect(0, 0, actualW, actualH));
+            if (!configured) Configure(true, 71, Color.FromRgb(143, 190, 255));
+            double scale = Math.Min(actualW / 630, actualH / 720);
+            double w = actualW / scale, h = actualH / scale;
+            Point center = new Point(w * origin.X, h * origin.Y);
+            dc.PushTransform(new ScaleTransform(scale, scale));
+            double t = still ? 24 : seconds;
+            if (primary && t < 6.75) DrawRing(dc, center, t);
+            if (t > 6.05)
+            {
+                DrawStarField(dc, w, h, t, scale);
+                if (t < BurstTime + BurstDuration)
+                {
+                    DrawWarp(dc, w, h, center, t);
+                    if (primary) DrawFlare(dc, center, w, h, t);
+                }
+                if (primary && t > TitleStart) DrawTitle(dc, w, h, t);
+            }
+            dc.Pop();
+        }
+
+        private void DrawRing(DrawingContext dc, Point center, double t)
+        {
+            double phase = t % 1.46;
+            double beat = Bell((phase - .23) / .115) + .50 * Bell((phase - .48) / .145);
+            double contraction = Ease((t - 5) / 1.65);
+            double size = 382 * (1 + beat * .085 * (1 - Ease((t - 4.85) / .15))) * (1 - contraction);
+            if (size < .15) return;
+            dc.PushTransform(new RotateTransform(Math.Sin(t * .4) * 1.4, center.X, center.Y));
+            DrawCentered(dc, ringBody, center, size);
+            dc.Pop();
+            dc.PushOpacity(.68 + beat * .29);
+            dc.PushTransform(new RotateTransform(Math.Sin(t * .35) * -3.3, center.X, center.Y));
+            DrawCentered(dc, ringDust, center, size * (1.008 + beat * .039));
+            dc.Pop(); dc.Pop();
+        }
+
+        private void DrawFlare(DrawingContext dc, Point center, double w, double h, double t)
+        {
+            double ignition = Ease((t - 6.05) / .64);
+            double build = Ease((t - 6.82) / (BurstTime - 6.82));
+            double after = Math.Max(0, t - BurstTime);
+            double light = 1 - Ease(after / 1.78);
+            if (light <= 0 || ignition <= 0) return;
+            dc.PushOpacity(ignition * light);
+            double expansion = 1 + 1.65 * after;
+            double halo = (40 + build * 78) * expansion;
+            Glow(dc, 1, center, halo, halo);
+            if (build > 0)
+            {
+                // Geometry keeps expanding after ignition. Only the light fades.
+                double strength = build * build;
+                dc.PushOpacity(strength);
+                DrawCentered(dc, flareFan, center, (180 + Math.Min(w * 1.25, h * 1.72) * strength) * expansion);
+                dc.Pop();
+                double span = Math.Max(w, h);
+                for (int i = 0; i < JetAngle.Length; i++)
+                {
+                    double start = 6.82 + JetDelay[i];
+                    double formed = Ease((t - start) / (BurstTime - start));
+                    if (formed <= 0) continue;
+                    double length = span * JetReach[i] * (formed + after * (.75 + JetReach[i]));
+                    double tail = span * JetReach[i] * after * (.48 + JetReach[i]);
+                    double halfWidth = JetWidth[i] * (.26 + .74 * formed) * (1 + after * .25);
+                    dc.PushTransform(new RotateTransform(JetAngle[i], center.X, center.Y));
+                    dc.DrawImage(jetStamp, new Rect(center.X + tail, center.Y - halfWidth, length - tail, 2 * halfWidth));
+                    dc.Pop();
+                }
+                Glow(dc, 3, center, (8 + 54 * strength) * expansion, (8 + 48 * strength) * expansion);
+            }
+            double core = (1.8 + 4.5 * build) * expansion;
+            Glow(dc, 3, center, (8 + 18 * build) * expansion, (8 + 18 * build) * expansion);
+            dc.DrawEllipse(inks[3, Shades - 1], null, center, core, core);
+            dc.Pop();
+        }
+
+        private void DrawWarp(DrawingContext dc, double w, double h, Point center, double t)
+        {
+            double age = t - BurstTime;
+            if (age <= 0) return;
+            double fade = 1 - Ease((age - 3.8) / (BurstDuration - 3.8));
+            // All rays leave on the same ignition. Depth spreads their screen crossings over time.
+            for (int i = 0; i < rays.Length; i++)
+            {
+                Star s = rays[i];
+                double flight = age * s.Speed;
+                double travel = flight * (.50 + .36 * flight);
+                Vector axis = new Point(s.X * w, s.Y * h) - center;
+                Point head = center + axis * travel;
+                if (head.X < -80 || head.Y < -80 || head.X > w + 80 || head.Y > h + 80) continue;
+                double tail = travel * (.08 + .22 * s.Depth) * Math.Min(1, flight * 3);
+                Point tip = center + axis * (travel - tail);
+                double light = fade * (.32 + .68 * s.Depth) * Math.Min(1, flight * 4);
+                int breadth = s.Depth > .89 ? 3 : s.Depth > .63 ? 2 : 1;
+                dc.DrawLine(lines[s.Tint, Shade(light * .65), breadth], tip, head);
+                dc.DrawLine(lines[3, Shade(light), breadth - 1], head + (tip - head) * .69, head);
+                if (s.Depth > .91) Glow(dc, s.Tint, head, 2.8 + s.Depth, 2.8 + s.Depth);
+            }
+        }
+
+        private void DrawStarField(DrawingContext dc, double w, double h, double t, double scale)
+        {
+            double visible = Ease((t - (BurstTime - .3)) / 2.8);
+            if (visible <= 0) return;
+            dc.PushOpacity(visible);
+            dc.DrawImage(deepSky, new Rect(0, 0, w, h));
+            double drift = t - BurstTime;
+            for (int i = 0; i < galaxies.Length; i++)
+            {
+                GalaxySprite galaxy = galaxies[i];
+                Rect bounds = galaxy.Bounds;
+                double x = (3.5 + i * .25) * Math.Sin(drift * (.076 + i * .012) + i * 1.71);
+                double y = (2.4 + i * .16) * Math.Cos(drift * (.061 + i * .009) + i * 2.13);
+                dc.DrawImage(galaxy.Image, new Rect(bounds.X * w + x / scale, bounds.Y * h + y / scale,
+                    bounds.Width * w, bounds.Height * h));
+            }
+            Point? mouse = still || !pointer.HasValue ? (Point?)null :
+                new Point(pointer.Value.X / scale, pointer.Value.Y / scale);
+            for (int i = 0; i < stars.Length; i++)
+            {
+                Star s = stars[i];
+                Point pos = new Point(s.X * w + Math.Sin(s.Phase + drift * .09) * (1 + s.Depth * 7),
+                                      s.Y * h + Math.Cos(s.Phase + drift * .073) * (1 + s.Depth * 6));
+                double attracted = 0;
+                if (mouse.HasValue)
+                {
+                    Vector offset = mouse.Value - pos;
+                    double weight = Math.Max(0, 1 - offset.Length / 116);
+                    attracted = weight * weight * s.Depth;
+                    pos += offset * (attracted * .66);
+                }
+                double light = .19 + .58 * s.Depth + .10 * Math.Sin(drift * s.Speed + s.Phase) + attracted * .4;
+                double rad = .35 + s.Depth * s.Depth * 1.1;
+                if (s.Depth > .967 || attracted > .28) Glow(dc, s.Tint, pos, rad * 4, rad * 4);
+                dc.DrawEllipse(inks[s.Tint, Shade(light)], null, pos, rad, rad);
+            }
+            dc.Pop();
+        }
+
+        // Bake the fixed dust lanes separately from the four translating galaxies.
+        private BitmapSource CreateDeepSky(int seed)
+        {
+            const int cw = 320, ch = 200, width = 960, height = 600;
+            byte[] cloud = new byte[(cw + 1) * (ch + 1) * 3];
+            byte[][] galaxyPixels = new byte[galaxies.Length][];
+            for (int i = 0; i < galaxyPixels.Length; i++) galaxyPixels[i] = new byte[(cw + 1) * (ch + 1) * 4];
+            double phase = (seed % 97) * .028;
+            for (int y = 0; y <= ch; y++) for (int x = 0; x <= cw; x++)
+            {
+                double u = x / (double)cw, v = y / (double)ch;
+                double body = 2 * SkyNoise(u * 12, v * 10, seed) - 1;
+                double detail = 2 * SkyNoise(u * 35, v * 33, seed + 3) - 1;
+                double fleck = 2 * SkyNoise(u * 91, v * 68, seed + 9) - 1;
+                double dust = .56 * body + .31 * detail + .13 * fleck;
+                double spine = .84 - .73 * u + .047 * Math.Sin(u * 7 + phase);
+                double d = (v - spine + .032 * body) / (.105 + .03 * Math.Sin(5 * u));
+                double band = Math.Exp(-d * d * 1.7) * (.92 + .86 * dust);
+                // Dark, branching absorption lanes cut across the bright central band.
+                double lane = Math.Exp(-Math.Pow((d - .18 * Math.Sin(u * 17) - .21 * body - .12 * detail) * 5, 2));
+                double branch = Math.Exp(-Math.Pow((d + .32 - .39 * Math.Sin(u * 12) + .18 * dust) * 8, 2));
+                band *= (1 - .70 * lane) * (1 - .38 * branch);
+                double warm = Math.Exp(-Math.Pow((u - .20) * 4, 2));
+                double red = 2 + band * (30 + 23 * warm);
+                double green = 3 + band * (32 + 11 * warm);
+                double blue = 8 + band * (48 - 8 * warm);
+
+                // Each sprite captures its own dust and colour at its original orientation.
+                int pixel = 4 * (y * (cw + 1) + x);
+                double gr = 0, gg = 0, gb = 0;
+                double gx = (u - .185) * 1.6, gy = v - .22;
+                AddDistantGalaxy((gx * .94 + gy * .34) / .173, (gy * .94 - gx * .34) / .10,
+                    body, dust, .20, ref gr, ref gg, ref gb);
+                SetGalaxyPixel(galaxyPixels[0], pixel, gr, gg, gb);
+                gr = gg = gb = 0;
+                gx = (u - .775) * 1.6; gy = v - .21;
+                AddDistantGalaxy((gx * .91 - gy * .415) / .145, (gx * .415 + gy * .91) / .055,
+                    body, dust, .82, ref gr, ref gg, ref gb);
+                SetGalaxyPixel(galaxyPixels[1], pixel, gr, gg, gb);
+
+                // An edge-on disk has an amber bulge bisected by a narrow dust lane.
+                gx = (u - .24) * 1.6; gy = v - .825;
+                double along = (gx * .97 + gy * .24) / .179;
+                double across = (gy * .97 - gx * .24) / .030;
+                double diskRadius = along * along + across * across;
+                if (diskRadius < 9)
+                {
+                    double disk = Math.Exp(-1.18 * diskRadius);
+                    double bulge = Math.Exp(-12 * along * along - .74 * across * across);
+                    double laneDepth = across + .07 + body * .13;
+                    double laneLight = 1 - .78 * Math.Exp(-laneDepth * laneDepth * 49);
+                    double intensity = (25 * disk + 57 * bulge) * laneLight;
+                    SetGalaxyPixel(galaxyPixels[2], pixel, intensity, intensity * .74, intensity * .60);
+                }
+
+                // Small, distant companion in the gap between the disk and the nebula.
+                gx = (u - .568) * 1.6; gy = v - .869;
+                double companionRadius = Math.Pow((gx * .81 - gy * .59) / .053, 2)
+                    + Math.Pow((gx * .59 + gy * .81) / .026, 2);
+                if (companionRadius < 7)
+                {
+                    double light = 25 * Math.Exp(-1.25 * companionRadius) + 32 * Math.Exp(-9 * companionRadius);
+                    SetGalaxyPixel(galaxyPixels[3], pixel, light * .91, light * .81, light);
+                }
+
+                // A cloud of ionised gas, with a ragged illuminated rim around a dark cavity.
+                double nx = (u - .83) / .165, ny = (v - .77) / .13;
+                double nr = Math.Sqrt(nx * nx + ny * ny);
+                if (nr < 2.1)
+                {
+                    double distort = .31 * body + .12 * detail + .20 * Math.Sin(3 * Math.Atan2(ny, nx));
+                    double rim = Math.Exp(-Math.Pow((nr - .76 - distort) / .22, 2));
+                    double gas = Math.Exp(-nr * nr * 1.1) * (.23 + .22 * dust) + .87 * rim * (.55 + .48 * dust);
+                    double filament = rim * rim * (.34 + .25 * detail + .12 * fleck);
+                    red += 45 * gas + 26 * filament;
+                    green += 22 * gas + 15 * filament;
+                    blue += 54 * gas + 29 * filament;
+                }
+                int n = (y * (cw + 1) + x) * 3;
+                cloud[n] = (byte)Math.Min(255, blue); cloud[n + 1] = (byte)Math.Min(255, green);
+                cloud[n + 2] = (byte)Math.Min(255, red);
+            }
+            for (int i = 0; i < galaxies.Length; i++) galaxies[i] = CropGalaxy(galaxyPixels[i], cw + 1, ch + 1);
+
+            byte[] pixels = new byte[width * height * 4];
+            for (int y = 0; y < height; y++) for (int x = 0; x < width; x++)
+            {
+                int p = (y * width + x) * 4, s = (y / 3 * (cw + 1) + x / 3) * 3;
+                int fx = x % 3, fy = y % 3, row = (cw + 1) * 3;
+                for (int c = 0; c < 3; c++, s++)
+                    pixels[p + c] = (byte)(((3 - fx) * (3 - fy) * cloud[s] + fx * (3 - fy) * cloud[s + 3] +
+                        (3 - fx) * fy * cloud[s + row] + fx * fy * cloud[s + row + 3]) / 9);
+                pixels[p + 3] = 255;
+            }
+            Random random = new Random(seed ^ 87179);
+            for (int i = 0; i < 1150; i++)
+            {
+                double u = random.NextDouble();
+                double v = i % 3 == 0 ? .84 - .73 * u + .047 * Math.Sin(u * 7 + phase) + .06 * Gaussian(random) :
+                    random.NextDouble();
+                if (v <= 0 || v >= 1) continue;
+                double brightness = .18 + .59 * random.NextDouble();
+                double radius = .43 + .68 * random.NextDouble();
+                Splat(pixels, width, height, u * width, v * height, radius, palette[random.Next(Tints)], brightness);
+            }
+            return Image(pixels, width, height);
+        }
+
+        private static void SetGalaxyPixel(byte[] pixels, int index, double red, double green, double blue)
+        {
+            pixels[index] = (byte)blue; pixels[index + 1] = (byte)green; pixels[index + 2] = (byte)red;
+            pixels[index + 3] = Math.Max(pixels[index], Math.Max(pixels[index + 1], pixels[index + 2]));
+        }
+
+        private static GalaxySprite CropGalaxy(byte[] pixels, int width, int height)
+        {
+            int left = width, top = height, right = -1, bottom = -1;
+            for (int y = 0; y < height; y++) for (int x = 0; x < width; x++)
+                if (pixels[4 * (y * width + x) + 3] > 0)
+                {
+                    left = Math.Min(left, x); right = Math.Max(right, x);
+                    top = Math.Min(top, y); bottom = Math.Max(bottom, y);
+                }
+            left = Math.Max(0, left - 1); top = Math.Max(0, top - 1);
+            right = Math.Min(width - 1, right + 1); bottom = Math.Min(height - 1, bottom + 1);
+            Int32Rect tile = new Int32Rect(left, top, right - left + 1, bottom - top + 1);
+            BitmapSource image = new CroppedBitmap(Image(pixels, width, height), tile);
+            image.Freeze();
+            return new GalaxySprite { Image = image,
+                Bounds = new Rect((left - .5) / (width - 1), (top - .5) / (height - 1),
+                    tile.Width / (double)(width - 1), tile.Height / (double)(height - 1)) };
+        }
+
+        private static void AddDistantGalaxy(double x, double y, double noise, double dust, double warmth,
+            ref double red, ref double green, ref double blue)
+        {
+            double r2 = x * x + y * y;
+            if (r2 > 6.5) return;
+            double lane = y + .14 + .22 * x * x + .12 * noise;
+            double disk = Math.Exp(-r2 * 1.42) * (1 + .40 * dust) * (1 - .32 * Math.Exp(-lane * lane * 28));
+            double core = 47 * Math.Exp(-r2 * 15);
+            red += (26 + 9 * warmth) * disk + core;
+            green += 29 * disk + .89 * core;
+            blue += (39 - 7 * warmth) * disk + .78 * core;
+        }
+
+        private static double SkyNoise(double x, double y, int seed)
+        {
+            int ix = (int)Math.Floor(x), iy = (int)Math.Floor(y);
+            double fx = Ease(x - ix), fy = Ease(y - iy);
+            double a = SkyHash(ix, iy, seed), b = SkyHash(ix + 1, iy, seed);
+            double c = SkyHash(ix, iy + 1, seed), d = SkyHash(ix + 1, iy + 1, seed);
+            return (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy;
+        }
+
+        private static double SkyHash(int x, int y, int seed)
+        {
+            uint n = unchecked((uint)(x * 374761393 + y * 668265263 + seed));
+            n = unchecked((n ^ (n >> 13)) * 1274126177u);
+            return ((n ^ (n >> 16)) & 65535) / 65535.0;
+        }
+
+        private void DrawTitle(DrawingContext dc, double w, double h, double t)
+        {
+            double size = Math.Min(w * .72 / titleImage.PixelWidth, h * .123 / titleImage.PixelHeight);
+            double left = (w - titleImage.PixelWidth * size) / 2;
+            double top = (h - titleImage.PixelHeight * size) / 2;
+            double settled = Ease((t - TitleStart - 2.15) / 1.85);
+            if (settled > 0)
+            {
+                dc.PushOpacity(settled);
+                DrawSettledTitle(dc, w, left, top, size, t);
+                dc.Pop();
+            }
+            if (settled >= 1) return;
+            dc.PushOpacity(1 - settled);
+            for (int i = 0; i < titleGrains.Length; i++)
+            {
+                TitleGrain g = titleGrains[i];
+                double arrival = Clamp((t - TitleStart - g.Delay * 1.16) / 2.35);
+                if (arrival <= 0) continue;
+                double spread = 1 - Ease(arrival);
+                double angle = g.Theta + spread * .52;
+                double distance = g.Reach * spread;
+                Point pos = new Point(left + g.X * size + distance * Math.Cos(angle),
+                                      top + g.Y * size + distance * Math.Sin(angle));
+                double r = Math.Max(.36, size * g.Weight);
+                dc.DrawEllipse(inks[g.Tint, Shade((.24 + .73 * arrival) * Math.Min(1, arrival * 4))], null, pos, r, r);
+            }
+            dc.Pop();
+        }
+
+        private void DrawSettledTitle(DrawingContext dc, double w, double left, double top, double size, double t)
+        {
+            Rect bounds = new Rect(left, top, titleImage.PixelWidth * size, titleImage.PixelHeight * size);
+            if (still || t < lastTitleFrame)
+            {
+                Array.Clear(grainOffsets, 0, grainOffsets.Length);
+                Array.Clear(movingTile, 0, movingTile.Length);
+            }
+            double delta = lastTitleFrame < 0 ? 1.0 / 30 : Math.Min(.12, Math.Max(0, t - lastTitleFrame));
+            lastTitleFrame = t;
+            Point? mouse = !still && pointer.HasValue ? (Point?)(new Point(pointer.Value.X * w / ActualWidth,
+                pointer.Value.Y * w / ActualWidth)) : null;
+            const double radius = 100;
+            bool near = mouse.HasValue && mouse.Value.X > bounds.Left - radius && mouse.Value.X < bounds.Right + radius &&
+                mouse.Value.Y > bounds.Top - radius && mouse.Value.Y < bounds.Bottom + radius;
+            if (!near && Array.IndexOf(movingTile, true) < 0) { dc.DrawImage(titleImage, bounds); return; }
+            Array.Clear(movingTile, 0, movingTile.Length);
+            double catchup = 1 - Math.Exp(-delta * 11);
+            for (int i = 0; i < titleGrains.Length; i++)
+            {
+                TitleGrain g = titleGrains[i];
+                double dx = 0, dy = 0;
+                if (near)
+                {
+                    double mx = mouse.Value.X - left - g.X * size, my = mouse.Value.Y - top - g.Y * size;
+                    double r2 = mx * mx + my * my;
+                    if (r2 < radius * radius)
+                    {
+                        double pull = Ease(1 - Math.Sqrt(r2) / radius) * (.74 + g.Delay * .4);
+                        dx = mx * pull;
+                        dy = (my - 3.8 * g.Weight) * pull;
+                    }
+                }
+                Point last = grainOffsets[i];
+                Point offset = new Point(last.X + (dx - last.X) * catchup, last.Y + (dy - last.Y) * catchup);
+                if (Math.Abs(offset.X) + Math.Abs(offset.Y) > .18) movingTile[(int)g.X / TileWidth] = true;
+                else offset = new Point();
+                grainOffsets[i] = offset;
+            }
+            // Reuse the intact bitmap everywhere except the few tiles brushed by the cursor.
+            if (Array.IndexOf(movingTile, true) < 0) { dc.DrawImage(titleImage, bounds); return; }
+            for (int k = 0; k < wholeTitleTiles.Length; k++)
+            {
+                BitmapSource tile = movingTile[k] ? anchorTiles[k] : wholeTitleTiles[k];
+                dc.DrawImage(tile, new Rect(left + k * TileWidth * size, top, tile.PixelWidth * size, bounds.Height));
+            }
+            for (int i = 0; i < titleGrains.Length; i++)
+            {
+                TitleGrain g = titleGrains[i];
+                if (!movingTile[(int)g.X / TileWidth]) continue;
+                Point offset = grainOffsets[i];
+                Point p = new Point(left + g.X * size + offset.X, top + g.Y * size + offset.Y);
+                double r = g.Weight * size;
+                double light = g.Light + Math.Min(.23, (Math.Abs(offset.X) + Math.Abs(offset.Y)) * .011);
+                dc.DrawEllipse(inks[g.Tint, Shade(light)], null, p, r, r);
+            }
+        }
+
+        // Rasterise two seeded dust bands once. The heart beat moves the soft
+        // outer dust slightly farther than the dense, sharply resolved core.
+        private BitmapSource CreateRing(Random random, bool outer)
+        {
+            const int side = 660;
+            byte[] pixels = new byte[side * side * 4];
+            int count = outer ? 10500 : 23500;
+            for (int i = 0; i < count; i++)
+            {
+                double angle = random.NextDouble() * Tau;
+                double width = 22 + 5.7 * Math.Sin(3 * angle + .8) + 3.5 * Math.Cos(5 * angle);
+                double noise = Gaussian(random);
+                double ridge = 233 + 3 * Math.Sin(angle * 4 + .7) + 1.9 * Math.Cos(angle * 7);
+                double r = ridge + noise * (outer ? width * 2.05 : width);
+                double light = (outer ? .56 : .76) * (.34 + random.NextDouble() * .66);
+                int tint = random.Next(8) < 6 ? 0 : (random.Next(2) == 0 ? 2 : 3);
+                double dot = .51 + random.NextDouble() * .87;
+                Splat(pixels, side, side, side * .5 + Math.Cos(angle) * r,
+                    side * .5 + Math.Sin(angle) * r, dot, palette[tint], light);
+            }
+            return Image(pixels, side, side);
+        }
+
+        // Flatten the typeset outlines once and scan their inside intervals.
+        // The settled letters are entirely made of the same grains that fly in.
+        private void CreateTitle(Random random)
+        {
+            FormattedText label = new FormattedText(Message, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+                new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal),
+                125, Brushes.White, 1);
+            PathGeometry glyphs = label.BuildGeometry(new Point()).GetFlattenedPathGeometry(.23, ToleranceType.Absolute);
+            Rect bounds = glyphs.Bounds;
+            int width = (int)Math.Ceiling(bounds.Width) + 10, height = (int)Math.Ceiling(bounds.Height) + 10;
+            byte[] pixels = new byte[width * height * 4];
+            byte[] anchors = new byte[pixels.Length];
+            List<Point[]> contours = new List<Point[]>();
+            foreach (PathFigure figure in glyphs.Figures)
+            {
+                List<Point> vertices = new List<Point>(); vertices.Add(figure.StartPoint);
+                foreach (PathSegment segment in figure.Segments)
+                {
+                    PolyLineSegment poly = segment as PolyLineSegment;
+                    if (poly != null) vertices.AddRange(poly.Points);
+                    else { LineSegment line = segment as LineSegment; if (line != null) vertices.Add(line.Point); }
+                }
+                if (vertices.Count > 2) contours.Add(vertices.ToArray());
+            }
+            List<TitleGrain> grains = new List<TitleGrain>();
+            List<double> crossings = new List<double>();
+            for (double y = bounds.Top + .6; y < bounds.Bottom; y += 1.9)
+            {
+                crossings.Clear();
+                foreach (Point[] polygon in contours)
+                {
+                    Point previous = polygon[polygon.Length - 1];
+                    foreach (Point p in polygon)
+                    {
+                        if ((p.Y > y) != (previous.Y > y))
+                            crossings.Add(previous.X + (p.X - previous.X) * (y - previous.Y) / (p.Y - previous.Y));
+                        previous = p;
+                    }
+                }
+                crossings.Sort();
+                for (int j = 1; j < crossings.Count; j += 2)
+                    for (double x = crossings[j - 1] + random.NextDouble() * 1.2; x < crossings[j]; x += 1.37 + random.NextDouble() * 1.25)
+                    {
+                        double tx = 5 + x - bounds.X, ty = 5 + y - bounds.Y + (random.NextDouble() - .5) * 1.35;
+                        int tint = random.Next(4); double weight = .68 + random.NextDouble() * .60;
+                        double light = .64 + random.NextDouble() * .36;
+                        Splat(pixels, width, height, tx, ty, weight, palette[tint], light);
+                        if (random.NextDouble() < .41) grains.Add(new TitleGrain { X = tx, Y = ty, Theta = random.NextDouble() * Tau,
+                            Reach = 35 + random.NextDouble() * 165, Delay = random.NextDouble(), Tint = tint, Weight = weight, Light = light });
+                        else Splat(anchors, width, height, tx, ty, weight, palette[tint], light);
+                    }
+            }
+            titleImage = Image(pixels, width, height); titleGrains = grains.ToArray();
+            BitmapSource anchorImage = Image(anchors, width, height);
+            int tiles = (width + TileWidth - 1) / TileWidth;
+            wholeTitleTiles = new BitmapSource[tiles]; anchorTiles = new BitmapSource[tiles];
+            for (int i = 0; i < tiles; i++)
+            {
+                Int32Rect slice = new Int32Rect(i * TileWidth, 0, Math.Min(TileWidth, width - i * TileWidth), height);
+                wholeTitleTiles[i] = new CroppedBitmap(titleImage, slice); wholeTitleTiles[i].Freeze();
+                anchorTiles[i] = new CroppedBitmap(anchorImage, slice); anchorTiles[i].Freeze();
+            }
+            movingTile = new bool[tiles]; grainOffsets = new Point[titleGrains.Length]; lastTitleFrame = -1;
+        }
+
+        private static void Splat(byte[] pixels, int w, int h, double x, double y, double radius, Color color, double light)
+        {
+            double edge = radius + .53;
+            int x0 = Math.Max(0, (int)(x - edge)), y0 = Math.Max(0, (int)(y - edge));
+            int x1 = Math.Min(w - 1, (int)(x + edge)), y1 = Math.Min(h - 1, (int)(y + edge));
+            for (int py = y0; py <= y1; py++) for (int px = x0; px <= x1; px++)
+            {
+                double dx = px + .5 - x, dy = py + .5 - y;
+                double a = light * Clamp(edge - Math.Sqrt(dx * dx + dy * dy));
+                int n = (py * w + px) * 4;
+                pixels[n] = (byte)(pixels[n] * (1 - a) + color.B * a);
+                pixels[n + 1] = (byte)(pixels[n + 1] * (1 - a) + color.G * a);
+                pixels[n + 2] = (byte)(pixels[n + 2] * (1 - a) + color.R * a);
+                pixels[n + 3] = (byte)(pixels[n + 3] * (1 - a) + 255 * a);
+            }
+        }
+
+        private static BitmapSource Image(byte[] pixels, int w, int h)
+        {
+            BitmapSource bitmap = BitmapSource.Create(w, h, 96, 96, PixelFormats.Pbgra32, null, pixels, w * 4);
+            bitmap.Freeze(); return bitmap;
+        }
+
+        // A baked, directional diffraction fan adds broad light between the
+        // sharp axial streaks. Each ray has its own spread and spectral edge.
+        private BitmapSource CreateFlareFan()
+        {
+            jetStamp = CreateJet();
+            const int side = 440;
+            double[] angles = { -158, -145, -119, -75, -39, -23, 18, 35, 57, 112, 140, 156 };
+            int n = angles.Length;
+            double[] cos = new double[n], sin = new double[n], widths = new double[n];
+            for (int i = 0; i < n; i++)
+            {
+                double a = angles[i] * Math.PI / 180;
+                cos[i] = Math.Cos(a); sin[i] = Math.Sin(a);
+                widths[i] = .039 + ((i * 19) % 13) * .009;
+            }
+            byte[] pixels = new byte[side * side * 4];
+            for (int y = 0; y < side; y++) for (int x = 0; x < side; x++)
+            {
+                double u = (2.0 * x + 1) / side - 1, v = (2.0 * y + 1) / side - 1;
+                double radius = Math.Sqrt(u * u + v * v);
+                if (radius >= 1) continue;
+                double field = .37 * Math.Exp(-radius * 7) + .92 * Math.Exp(-radius * 32);
+                double r = field, g = field * .80, b = field * .51;
+                for (int i = 0; i < n; i++)
+                {
+                    double along = u * cos[i] + v * sin[i];
+                    if (along <= 0) continue;
+                    double cross = (v * cos[i] - u * sin[i]) / (.004 + along * widths[i]);
+                    if (Math.Abs(cross) > 3) continue;
+                    double beam = (.65 + .17 * (i % 3)) * Math.Exp(-along * (2.9 + .31 * (i % 5)));
+                    double red = cross - along * .79, blue = cross + along * .92;
+                    r += beam * Math.Exp(-red * red);
+                    g += beam * .87 * Math.Exp(-cross * cross);
+                    b += beam * .68 * Math.Exp(-blue * blue);
+                }
+                double edge = 255 * (1 - Ease((radius - .59) / .41));
+                int p = (y * side + x) * 4;
+                pixels[p] = (byte)(edge * (1 - Math.Exp(-b)));
+                pixels[p + 1] = (byte)(edge * (1 - Math.Exp(-g)));
+                pixels[p + 2] = (byte)(edge * (1 - Math.Exp(-r)));
+                pixels[p + 3] = Math.Max(pixels[p], Math.Max(pixels[p + 1], pixels[p + 2]));
+            }
+            return Image(pixels, side, side);
+        }
+
+        // A one-sided optical filament with a white spine and a tapered warm halo.
+        private BitmapSource CreateJet()
+        {
+            const int w = 256, h = 28;
+            byte[] pixels = new byte[w * h * 4];
+            for (int x = 0; x < w; x++)
+            {
+                double along = (x + .5) / w;
+                double envelope = (1 - Ease((along - .38) / .62)) * Ease(along / .035);
+                for (int y = 0; y < h; y++)
+                {
+                    double cross = (2 * (y + .5) / h - 1) / (1.03 - along * .80);
+                    double spine = Math.Exp(-cross * cross * 70);
+                    double light = envelope * (.33 * Math.Exp(-cross * cross * 5) + .67 * spine);
+                    int p = (y * w + x) * 4;
+                    pixels[p] = (byte)(light * (148 + 95 * spine));
+                    pixels[p + 1] = (byte)(light * (198 + 52 * spine));
+                    pixels[p + 2] = pixels[p + 3] = (byte)(255 * light);
+                }
+            }
+            return Image(pixels, w, h);
+        }
+
+        private static void DrawCentered(DrawingContext dc, ImageSource image, Point p, double size)
+        { dc.DrawImage(image, new Rect(p.X - size * .5, p.Y - size * .5, size, size)); }
+
+        private void Glow(DrawingContext dc, int tint, Point p, double rx, double ry)
+        { dc.DrawEllipse(bloom[tint], null, p, rx, ry); }
+
+        private static Brush Halo(Color color)
+        {
+            RadialGradientBrush b = new RadialGradientBrush();
+            b.GradientStops.Add(new GradientStop(color, 0));
+            b.GradientStops.Add(new GradientStop(Color.FromArgb(134, color.R, color.G, color.B), .13));
+            b.GradientStops.Add(new GradientStop(Color.FromArgb(43, color.R, color.G, color.B), .36));
+            b.GradientStops.Add(new GradientStop(Color.FromArgb(9, color.R, color.G, color.B), .70));
+            b.GradientStops.Add(new GradientStop(Color.FromArgb(0, color.R, color.G, color.B), 1));
+            b.Freeze(); return b;
+        }
+
+        private static Color Mix(Color a, Color b, double amount)
+        { return Color.FromRgb((byte)(a.R + (b.R - a.R) * amount), (byte)(a.G + (b.G - a.G) * amount), (byte)(a.B + (b.B - a.B) * amount)); }
+        private static double Gaussian(Random r) { return Math.Sqrt(-2 * Math.Log(1 - r.NextDouble())) * Math.Cos(Tau * r.NextDouble()); }
+        private static double Bell(double x) { return Math.Exp(-x * x); }
+        private static double Clamp(double x) { return Math.Max(0, Math.Min(1, x)); }
+        private static double Ease(double x) { x = Clamp(x); return x * x * (3 - 2 * x); }
+        private static int Shade(double light) { return (int)(Clamp(light) * (Shades - 1) + .5); }
+    }
+}

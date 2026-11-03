@@ -22,6 +22,7 @@ internal static class CoreTests
             UnitPersistenceCases(testDirectory);
             MusicPreferenceCases(testDirectory);
             ArrivalPersistenceCases(testDirectory);
+            DayZeroCases(testDirectory);
             Console.WriteLine("PASS: " + assertions + " core acceptance checks.");
             return 0;
         }
@@ -342,6 +343,30 @@ internal static class CoreTests
         opaque.LastArrivalTarget = null;
         store.Save(opaque);
         Equal(null, store.Load().LastArrivalTarget, "An explicit null arrival marker survives persistence");
+    }
+
+    private static void DayZeroCases(string testDirectory)
+    {
+        SettingsStore store = new SettingsStore(Path.Combine(testDirectory, "day-zero"));
+        Directory.CreateDirectory(Path.GetDirectoryName(store.FilePath));
+        File.WriteAllText(store.FilePath, "{\"IsConfigured\":true,\"MorningGreeting\":false,\"TargetLocal\":\"2026-11-03T18:30:00\"}");
+        DateTime day = new DateTime(2026, 11, 3);
+        AppSettings settings = store.Load();
+        True(DayZeroPolicy.Pending(settings, day), "An existing event qualifies on its local date starting at midnight");
+        True(DayZeroPolicy.Pending(settings, day.AddHours(23)), "A late sign-in can still see today's scene after the event");
+        False(DayZeroPolicy.Pending(settings, day.AddTicks(-1)), "No day-zero reveal on the night before");
+        False(DayZeroPolicy.Pending(settings, day.AddDays(1)), "No stale reveal the next morning");
+        settings.LastDayZeroDate = "2026-11-03";
+        settings.TargetLocal = "2026-11-03T21:45:00";
+        store.Save(settings);
+        False(DayZeroPolicy.Pending(store.Load(), day), "Restart or a time edit on the same day cannot replay it");
+        settings.TargetLocal = "2026-11-04T09:00:00";
+        True(DayZeroPolicy.Pending(settings, day.AddDays(1)), "A newly selected holiday date has its own reveal");
+        settings.DayZeroEnabled = false;
+        store.Save(settings);
+        False(DayZeroPolicy.Pending(store.Load(), day.AddDays(1)), "The user's opt-out survives a restart");
+        settings.DayZeroEnabled = true; settings.IsConfigured = false;
+        False(DayZeroPolicy.Pending(settings, day.AddDays(1)), "An unsaved first-run default cannot interrupt the desktop");
     }
 
     private static void PersistenceCases(string testDirectory)

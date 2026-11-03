@@ -23,6 +23,14 @@ namespace HolidayTimer
                     return UiChecks.Run(Array.IndexOf(args, "--render-preview") >= 0);
 
                 bool startup = Array.IndexOf(args, "--startup") >= 0;
+                foreach (string mode in new[] { "--preview-day-zero", "--preview-fireworks" })
+                    if (Array.IndexOf(args, mode) >= 0)
+                    {
+                        string isolated = Path.Combine(Path.GetTempPath(), "HolidayTimer-Preview-" + Guid.NewGuid().ToString("N"));
+                        HolidayApplication preview = new HolidayApplication(new SettingsStore(isolated), null, true);
+                        preview.StandalonePreview = mode;
+                        return preview.Run();
+                    }
                 string user = WindowsIdentity.GetCurrent().User.Value;
                 using (EventWaitHandle activation = new EventWaitHandle(false, EventResetMode.AutoReset, @"Local\HolidayTimer.Show." + user))
                 {
