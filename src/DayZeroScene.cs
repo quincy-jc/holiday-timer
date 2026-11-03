@@ -41,7 +41,8 @@ namespace HolidayTimer
         private readonly DrawingGroup titleDrawing = new DrawingGroup();
         private double lastFieldFrame = -1;
         private readonly Star[] rays = new Star[1400];
-        private BitmapSource ringBody, ringDust, titleImage, ringNumber, stageCaption;
+        private BitmapSource ringBody, ringDust, titleImage;
+        private DrawingImage ringNumber, stageCaption;
         private enum LetteringKind { Message, Numeral, Caption }
         private FlareStamp flareFan, jetStamp, warmGlow, whiteGlow;
         private BitmapSource deepSky;
@@ -161,9 +162,9 @@ namespace HolidayTimer
             {
                 ringBody = CreateRing(random, false); ringDust = CreateRing(random, true);
                 titleImage = CreateLettering(message, random, LetteringKind.Message);
-                ringNumber = daysRemaining > 0 ? CreateLettering(daysRemaining.ToString(CultureInfo.InvariantCulture),
-                    new Random(seed ^ 52743), LetteringKind.Numeral) : null;
-                stageCaption = daysRemaining > 0 ? CreateLettering(caption, new Random(seed ^ 34019), LetteringKind.Caption) : null;
+                ringNumber = daysRemaining > 0 ? FilteredStars(CreateLettering(daysRemaining.ToString(CultureInfo.InvariantCulture),
+                    new Random(seed ^ 52743), LetteringKind.Numeral)) : null;
+                stageCaption = daysRemaining > 0 ? FilteredStars(CreateLettering(caption, new Random(seed ^ 34019), LetteringKind.Caption)) : null;
                 flareFan = CreateFlareFan(); jetStamp = CreateJet();
                 warmGlow = CreateFlareGlow(palette[1]); whiteGlow = CreateFlareGlow(palette[3]);
             }
@@ -274,7 +275,7 @@ namespace HolidayTimer
             dc.Pop(); dc.Pop();
             if (ringNumber != null && t < 6.35)
             {
-                double height = size * .32, width = height * ringNumber.PixelWidth / ringNumber.PixelHeight;
+                double height = size * .32, width = height * ringNumber.Width / ringNumber.Height;
                 dc.PushOpacity(1 - Ease((t - 5.15) / 1.20));
                 dc.DrawImage(ringNumber, new Rect(center.X - width * .5, center.Y - height * .5, width, height));
                 dc.Pop();
@@ -847,7 +848,7 @@ namespace HolidayTimer
                 if (opacity > 0)
                 {
                     dc.PushOpacity(opacity);
-                    double width = stageCaption.PixelWidth * .5, height = stageCaption.PixelHeight * .5;
+                    double width = stageCaption.Width * .5, height = stageCaption.Height * .5;
                     dc.DrawImage(stageCaption, new Rect((w - width) * .5, top - height - 15, width, height));
                     dc.Pop();
                 }
@@ -993,23 +994,12 @@ namespace HolidayTimer
         // grains after rasterization; the caption and numeral reuse frozen images.
         private BitmapSource CreateLettering(string text, Random random, LetteringKind kind)
         {
-            bool interactive = kind == LetteringKind.Message;
-            bool numeral = kind == LetteringKind.Numeral;
-            double rowSpacing = numeral ? 2.55 : 1.9;
-            double columnSpacing = numeral ? 2.05 : 1.37;
             FormattedText label = new FormattedText(text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
                 new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal),
                 kind == LetteringKind.Caption ? 54 : 125, Brushes.White, 1);
             PathGeometry glyphs = label.BuildGeometry(new Point()).GetFlattenedPathGeometry(.23, ToleranceType.Absolute);
             Rect bounds = glyphs.Bounds;
             int width = (int)Math.Ceiling(bounds.Width) + 10, height = (int)Math.Ceiling(bounds.Height) + 10;
-            byte[] pixels = new byte[width * height * 4];
-            if (interactive)
-            {
-                titleTiles = new TitleTile[(width + TileWidth - 1) / TileWidth];
-                for (int i = 0; i < titleTiles.Length; i++)
-                    titleTiles[i] = new TitleTile { X = i * TileWidth, Width = Math.Min(TileWidth, width - i * TileWidth) };
-            }
             List<Point[]> contours = new List<Point[]>();
             foreach (PathFigure figure in glyphs.Figures)
             {
@@ -1022,10 +1012,17 @@ namespace HolidayTimer
                 }
                 if (vertices.Count > 2) contours.Add(vertices.ToArray());
             }
+            if (kind != LetteringKind.Message)
+                return CreateGlyphStars(contours, bounds, width, height, kind, random);
+
+            byte[] pixels = new byte[width * height * 4];
+            titleTiles = new TitleTile[(width + TileWidth - 1) / TileWidth];
+            for (int i = 0; i < titleTiles.Length; i++)
+                titleTiles[i] = new TitleTile { X = i * TileWidth, Width = Math.Min(TileWidth, width - i * TileWidth) };
             List<TitleGrain> grains = new List<TitleGrain>();
             List<int> incoming = new List<int>();
             List<double> crossings = new List<double>();
-            for (double y = bounds.Top + .6; y < bounds.Bottom; y += rowSpacing)
+            for (double y = bounds.Top + .6; y < bounds.Bottom; y += 1.9)
             {
                 crossings.Clear();
                 foreach (Point[] polygon in contours)
@@ -1040,13 +1037,12 @@ namespace HolidayTimer
                 }
                 crossings.Sort();
                 for (int j = 1; j < crossings.Count; j += 2)
-                    for (double x = crossings[j - 1] + random.NextDouble() * 1.2; x < crossings[j]; x += columnSpacing + random.NextDouble() * 1.25)
+                    for (double x = crossings[j - 1] + random.NextDouble() * 1.2; x < crossings[j]; x += 1.37 + random.NextDouble() * 1.25)
                     {
                         double tx = 5 + x - bounds.X, ty = 5 + y - bounds.Y + (random.NextDouble() - .5) * 1.35;
                         int tint = random.Next(4); double weight = .68 + random.NextDouble() * .60;
                         double light = .64 + random.NextDouble() * .36;
                         Splat(pixels, width, height, tx, ty, weight, palette[tint], light);
-                        if (!interactive) continue;
                         if (random.NextDouble() < .41) incoming.Add(grains.Count);
                         titleTiles[(int)tx / TileWidth].Grains.Add(grains.Count);
                         grains.Add(new TitleGrain { X = tx, Y = ty, Theta = random.NextDouble() * Tau,
@@ -1054,7 +1050,6 @@ namespace HolidayTimer
                     }
             }
             BitmapSource image = Image(pixels, width, height);
-            if (!interactive) return image;
             titleGrains = grains.ToArray();
             incomingGrains = incoming.ToArray();
             foreach (TitleTile tile in titleTiles)
@@ -1070,6 +1065,80 @@ namespace HolidayTimer
             }
             grainOffsets = new Point[titleGrains.Length]; lastTitleFrame = -1;
             return image;
+        }
+
+        // Use a separate filtered drawing so tiny round grains aren't sampled as squares
+        // by the nearest-neighbour group used for the already screen-sized interactive title.
+        private static DrawingImage FilteredStars(BitmapSource stars)
+        {
+            var drawing = new DrawingGroup();
+            RenderOptions.SetBitmapScalingMode(drawing, BitmapScalingMode.HighQuality);
+            drawing.Children.Add(new ImageDrawing(stars, new Rect(0, 0, stars.Width, stars.Height)));
+            var image = new DrawingImage(drawing); image.Freeze(); return image;
+        }
+
+        private BitmapSource CreateGlyphStars(List<Point[]> contours, Rect bounds, int width, int height,
+            LetteringKind kind, Random random)
+        {
+            const int samples = 3;
+            int w = width * samples, h = height * samples;
+            byte[] pixels = new byte[w * h * 4];
+            double spacing = kind == LetteringKind.Numeral ? 2.62 : 1.96;
+            // Keep the previous average population but stagger each row and sample both axes.
+            for (double row = bounds.Top - spacing; row < bounds.Bottom; row += spacing)
+            {
+                double start = bounds.Left - spacing * random.NextDouble();
+                for (double col = start; col < bounds.Right; col += spacing)
+                {
+                    double x = col + (.04 + .92 * random.NextDouble()) * spacing;
+                    double y = row + (.04 + .92 * random.NextDouble()) * spacing;
+                    if (!InsideGlyph(contours, x, y)) continue;
+                    double rank = random.NextDouble();
+                    double radius = .64 + .91 * rank + .36 * Math.Pow(rank, 5);
+                    if (kind == LetteringKind.Caption) radius *= 1.15;
+                    double light = .53 + .29 * random.NextDouble() + .17 * rank;
+                    Color colour = palette[random.Next(Tints)];
+                    PaintRoundStar(pixels, w, h, (x - bounds.X + 5) * samples,
+                        (y - bounds.Y + 5) * samples, radius * samples, light, colour);
+                }
+            }
+            var bitmap = BitmapSource.Create(w, h, 96 * samples, 96 * samples, PixelFormats.Pbgra32, null, pixels, w * 4);
+            bitmap.Freeze(); return bitmap;
+        }
+
+        private static bool InsideGlyph(List<Point[]> contours, double x, double y)
+        {
+            bool inside = false;
+            foreach (Point[] polygon in contours)
+            {
+                Point previous = polygon[polygon.Length - 1];
+                foreach (Point p in polygon)
+                {
+                    if ((p.Y > y) != (previous.Y > y) &&
+                        x < previous.X + (p.X - previous.X) * (y - previous.Y) / (p.Y - previous.Y))
+                        inside = !inside;
+                    previous = p;
+                }
+            }
+            return inside;
+        }
+
+        private static void PaintRoundStar(byte[] pixels, int w, int h, double x, double y, double radius,
+            double light, Color colour)
+        {
+            double edge = radius * 2.5, falloff = 1.34 / (radius * radius);
+            for (int py = Math.Max(0, (int)(y - edge)); py <= Math.Min(h - 1, (int)(y + edge)); py++)
+                for (int px = Math.Max(0, (int)(x - edge)); px <= Math.Min(w - 1, (int)(x + edge)); px++)
+                {
+                    double dx = px + .5 - x, dy = py + .5 - y;
+                    double a = light * Math.Exp(-(dx * dx + dy * dy) * falloff);
+                    if (a < 1 / 255.0) continue;
+                    int n = (py * w + px) * 4;
+                    pixels[n] = (byte)(pixels[n] * (1 - a) + colour.B * a);
+                    pixels[n + 1] = (byte)(pixels[n + 1] * (1 - a) + colour.G * a);
+                    pixels[n + 2] = (byte)(pixels[n + 2] * (1 - a) + colour.R * a);
+                    pixels[n + 3] = (byte)(pixels[n + 3] * (1 - a) + 255 * a);
+                }
         }
 
         private static void Splat(byte[] pixels, int w, int h, double x, double y, double radius, Color color, double light)
