@@ -1,9 +1,9 @@
 param(
     [switch]$Test,
     [switch]$SkipAppBuild,
-    [string]$PayloadDirectory = 'dist\countdown-reveals',
-    [string]$OutputDirectory = 'dist\countdown-reveals-setup',
-    [string]$MetadataDirectory = 'dist\countdown-reveals-setup-verification',
+    [string]$PayloadDirectory = 'dist\countdown-dust',
+    [string]$OutputDirectory = 'dist\countdown-dust-setup',
+    [string]$MetadataDirectory = 'dist\countdown-dust-setup-verification',
     [string]$CompilerPath = 'tools\inno-6.7.3\ISCC.exe',
     [switch]$IsolationTest,
     [string]$TestRoot

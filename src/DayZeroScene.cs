@@ -41,8 +41,8 @@ namespace HolidayTimer
         private readonly DrawingGroup titleDrawing = new DrawingGroup();
         private double lastFieldFrame = -1;
         private readonly Star[] rays = new Star[1400];
-        private BitmapSource ringBody, ringDust, titleImage, ringNumber;
-        private DrawingImage stageCaption;
+        private BitmapSource ringBody, ringDust, titleImage, ringNumber, stageCaption;
+        private enum LetteringKind { Message, Numeral, Caption }
         private FlareStamp flareFan, jetStamp, warmGlow, whiteGlow;
         private BitmapSource deepSky;
         private readonly GalaxySprite[] galaxies = new GalaxySprite[4];
@@ -160,10 +160,10 @@ namespace HolidayTimer
             if (primary)
             {
                 ringBody = CreateRing(random, false); ringDust = CreateRing(random, true);
-                titleImage = CreateLettering(message, random, true);
+                titleImage = CreateLettering(message, random, LetteringKind.Message);
                 ringNumber = daysRemaining > 0 ? CreateLettering(daysRemaining.ToString(CultureInfo.InvariantCulture),
-                    new Random(seed ^ 52743), false) : null;
-                stageCaption = daysRemaining > 0 ? CreateCaption(caption, palette[2]) : null;
+                    new Random(seed ^ 52743), LetteringKind.Numeral) : null;
+                stageCaption = daysRemaining > 0 ? CreateLettering(caption, new Random(seed ^ 34019), LetteringKind.Caption) : null;
                 flareFan = CreateFlareFan(); jetStamp = CreateJet();
                 warmGlow = CreateFlareGlow(palette[1]); whiteGlow = CreateFlareGlow(palette[3]);
             }
@@ -847,8 +847,8 @@ namespace HolidayTimer
                 if (opacity > 0)
                 {
                     dc.PushOpacity(opacity);
-                    dc.DrawImage(stageCaption, new Rect((w - stageCaption.Width) * .5, top - stageCaption.Height - 15,
-                        stageCaption.Width, stageCaption.Height));
+                    double width = stageCaption.PixelWidth * .5, height = stageCaption.PixelHeight * .5;
+                    dc.DrawImage(stageCaption, new Rect((w - width) * .5, top - height - 15, width, height));
                     dc.Pop();
                 }
             }
@@ -989,27 +989,17 @@ namespace HolidayTimer
             return Image(pixels, side, side);
         }
 
-        private static DrawingImage CreateCaption(string text, Color accent)
+        // Sample the outline once. Only the interactive message keeps individual
+        // grains after rasterization; the caption and numeral reuse frozen images.
+        private BitmapSource CreateLettering(string text, Random random, LetteringKind kind)
         {
-            var drawing = new DrawingGroup();
-            var brush = new SolidColorBrush(Mix(Color.FromRgb(169, 182, 204), accent, .21));
-            brush.Freeze();
-            var textRun = new FormattedText(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
-                new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Medium, FontStretches.Normal),
-                22, brush, 1);
-            using (DrawingContext dc = drawing.Open()) dc.DrawText(textRun, new Point());
-            var image = new DrawingImage(drawing);
-            image.Freeze();
-            return image;
-        }
-
-        // Sample the typeset outline once. Interactive lettering keeps its grains
-        // by tile; the opening numeral needs just its static particle image.
-        private BitmapSource CreateLettering(string text, Random random, bool interactive)
-        {
+            bool interactive = kind == LetteringKind.Message;
+            bool numeral = kind == LetteringKind.Numeral;
+            double rowSpacing = numeral ? 2.55 : 1.9;
+            double columnSpacing = numeral ? 2.05 : 1.37;
             FormattedText label = new FormattedText(text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
                 new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal),
-                125, Brushes.White, 1);
+                kind == LetteringKind.Caption ? 54 : 125, Brushes.White, 1);
             PathGeometry glyphs = label.BuildGeometry(new Point()).GetFlattenedPathGeometry(.23, ToleranceType.Absolute);
             Rect bounds = glyphs.Bounds;
             int width = (int)Math.Ceiling(bounds.Width) + 10, height = (int)Math.Ceiling(bounds.Height) + 10;
@@ -1035,7 +1025,7 @@ namespace HolidayTimer
             List<TitleGrain> grains = new List<TitleGrain>();
             List<int> incoming = new List<int>();
             List<double> crossings = new List<double>();
-            for (double y = bounds.Top + .6; y < bounds.Bottom; y += 1.9)
+            for (double y = bounds.Top + .6; y < bounds.Bottom; y += rowSpacing)
             {
                 crossings.Clear();
                 foreach (Point[] polygon in contours)
@@ -1050,7 +1040,7 @@ namespace HolidayTimer
                 }
                 crossings.Sort();
                 for (int j = 1; j < crossings.Count; j += 2)
-                    for (double x = crossings[j - 1] + random.NextDouble() * 1.2; x < crossings[j]; x += 1.37 + random.NextDouble() * 1.25)
+                    for (double x = crossings[j - 1] + random.NextDouble() * 1.2; x < crossings[j]; x += columnSpacing + random.NextDouble() * 1.25)
                     {
                         double tx = 5 + x - bounds.X, ty = 5 + y - bounds.Y + (random.NextDouble() - .5) * 1.35;
                         int tint = random.Next(4); double weight = .68 + random.NextDouble() * .60;
