@@ -51,6 +51,8 @@ namespace HolidayTimer
         [DataMember] public bool IsConfigured { get; set; }
         [DataMember] public bool AutomaticPublicHoliday { get; set; }
         [DataMember] public string PublicHolidayKey { get; set; }
+        internal bool IsPublicHolidayCountdown
+        { get { return AutomaticPublicHoliday || !String.IsNullOrEmpty(PublicHolidayKey); } }
         [DataMember] public HolidayTheme Theme { get; set; }
         [DataMember] public bool LightAppearance { get; set; }
         [DataMember] public double BackgroundOpacity { get; set; }
@@ -251,7 +253,7 @@ namespace HolidayTimer
     {
         internal static bool Pending(AppSettings settings, DateTime localNow)
         {
-            if (settings == null || !settings.IsConfigured || !settings.DayZeroEnabled) return false;
+            if (settings == null || !settings.IsConfigured || !settings.DayZeroEnabled || settings.IsPublicHolidayCountdown) return false;
             string day = localNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             if (settings.LastDayZeroDate == day) return false;
             try { return CountdownCalculator.ToLocalTarget(settings.TargetLocal).Date == localNow.Date; }

@@ -1,12 +1,12 @@
 # Holiday Timer setup
 
-`dist/day-zero-setup/HolidayTimerSetup.exe` is the one file to share for version 1.10.0. It includes the app, configuration, documentation, MIT licence and font licence. Double-click it and choose Install.
+`dist/custom-day-zero-setup/HolidayTimerSetup.exe` is the one file to share for version 1.10.1. It includes the app, configuration, documentation, MIT licence and font licence. Double-click it and choose Install.
 
 Current features include automatic arrival celebrations and optional morning greetings on every connected monitor, with Fireworks or Flowers plus confetti and shared Escape dismissal. The matching WPF calendar and colour picker, Original glass plus twelve additional effects, five countdown units, configurable working hours, direct Workdays switch, optional music response and plain custom lettering remain. Default colours/shadows are unchanged. The soft glass backing and coloured artwork stay independent of centre opacity.
 
 The installed app lives in `%LOCALAPPDATA%\Programs\HolidayTimer`, with a Start menu shortcut. Installation is for the current Windows user and requires no administrator password, restart, or internet connection on Windows 11. Remove it through **Settings → Apps → Installed apps → Holiday Timer → Uninstall**.
 
-Install 1.10.0 over an older version without uninstalling first. The upgrade uses the existing Apps entry and preserves preferences. Missing working-time fields default to elapsed mode and 09:00–17:00. The default celebration style is Fireworks.
+Install 1.10.1 over an older version without uninstalling first. The upgrade uses the existing Apps entry and preserves preferences. Missing working-time fields default to elapsed mode and 09:00–17:00. The default celebration style is Fireworks.
 
 Before updating or removing the app, save any edits and choose **Exit Holiday Timer** from the tray. Setup does not force a running copy closed. Uninstall removes the installed app and its own sign-in registration, while preserving the saved countdown at `%LOCALAPPDATA%\HolidayTimer`. An existing saved **Launch when I sign in** choice is respected. Saved preferences can be removed separately after uninstall if they are no longer wanted.
 
@@ -44,15 +44,17 @@ Version 1.9.5 counts ordinary Days by local calendar dates: today is 0 and tomor
 
 Version 1.10.0 adds the Day Zero starburst at sign-in or unlock, brighter fireworks, and transparent space around everyday celebration text. **Always animate celebrations** defaults to On and respects a saved Off preference.
 
+Version 1.10.1 limits the automatic Day Zero starburst to custom countdowns. NSW public holiday countdowns use the regular arrival celebration.
+
 Run from the project root:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\build-setup.ps1 -Test
 ```
 
-The command builds the app into `dist/day-zero`, runs its checks, compiles `installer/HolidayTimer.iss`, writes `dist/day-zero-setup/HolidayTimerSetup.exe`, and tests setup and removal with isolated install paths and registry/startup names. Package metadata is recorded in `dist/day-zero-setup-verification/package-info.json`.
+The command builds the app into `dist/custom-day-zero`, runs its checks, compiles `installer/HolidayTimer.iss`, writes `dist/custom-day-zero-setup/HolidayTimerSetup.exe`, and tests setup and removal with isolated install paths and registry/startup names. Package metadata is recorded in `dist/custom-day-zero-setup-verification/package-info.json`.
 
-The installer checks can also run separately with `powershell -NoProfile -ExecutionPolicy Bypass -File .\installer\test-setup.ps1 -CompilerPath .\tools\inno-6.7.3\ISCC.exe -PayloadDirectory dist\day-zero`.
+The installer checks can also run separately with `powershell -NoProfile -ExecutionPolicy Bypass -File .\installer\test-setup.ps1 -CompilerPath .\tools\inno-6.7.3\ISCC.exe -PayloadDirectory dist\custom-day-zero`.
 
 ## Build-time compiler
 

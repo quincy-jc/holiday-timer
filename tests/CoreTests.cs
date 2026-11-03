@@ -367,6 +367,21 @@ internal static class CoreTests
         False(DayZeroPolicy.Pending(store.Load(), day.AddDays(1)), "The user's opt-out survives a restart");
         settings.DayZeroEnabled = true; settings.IsConfigured = false;
         False(DayZeroPolicy.Pending(settings, day.AddDays(1)), "An unsaved first-run default cannot interrupt the desktop");
+
+        DateTime christmas = new DateTime(2026, 12, 25);
+        settings.IsConfigured = true;
+        settings.HolidayName = "Christmas Day";
+        settings.TargetLocal = christmas.ToString(CountdownCalculator.TargetFormat, CultureInfo.InvariantCulture);
+        settings.AutomaticPublicHoliday = true;
+        store.Save(settings);
+        False(DayZeroPolicy.Pending(store.Load(), christmas), "An automatically loaded holiday skips Day Zero even without a calendar key");
+        settings.AutomaticPublicHoliday = false;
+        settings.PublicHolidayKey = "christmas-day-2026";
+        store.Save(settings);
+        False(DayZeroPolicy.Pending(store.Load(), christmas), "Choosing an NSW entry and saving it keeps Day Zero off for that event");
+        settings.PublicHolidayKey = null;
+        store.Save(settings);
+        True(DayZeroPolicy.Pending(store.Load(), christmas), "A custom event on the same date can show Day Zero even with the same name");
     }
 
     private static void PersistenceCases(string testDirectory)

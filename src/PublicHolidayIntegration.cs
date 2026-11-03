@@ -29,10 +29,11 @@ namespace HolidayTimer
         private bool KeepTodayForCelebration(DateTime now)
         {
             if (DayZeroPolicy.Pending(Settings, now)) return true;
-            // If this morning's reveal was delivered, keep today's target for
-            // an arrival missed while the app was closed.
-            return Settings.IsConfigured && Settings.DayZeroEnabled &&
-                Settings.LastDayZeroDate == now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) &&
+            // A calendar countdown still owes its regular arrival, as does a
+            // custom countdown whose earlier Day Zero reveal has been dismissed.
+            bool hadCustomReveal = Settings.IsConfigured && Settings.DayZeroEnabled &&
+                Settings.LastDayZeroDate == now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            return (Settings.IsPublicHolidayCountdown || hadCustomReveal) &&
                 ArrivalPolicy.ShouldShow(Settings, CountdownCalculator.ToLocalOffset(now)) &&
                 CountdownCalculator.ParseTarget(Settings.TargetLocal).Date == now.Date;
         }

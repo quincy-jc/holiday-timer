@@ -57,10 +57,7 @@ namespace HolidayTimer
             Grid root = (Grid)window.Content;
             Layouts.Find<StackPanel>(window, "GreetingMessage").Visibility = Visibility.Collapsed;
             Button dismiss = Layouts.Find<Button>(window, "GreetingDismiss");
-            dismiss.Content = "Continue   ·   Esc";
             dismiss.FontSize = 12;
-            dismiss.Foreground = Brushes.White;
-            dismiss.Background = Brushes.Black;
             dismiss.Margin = new Thickness(0, 0, 0, 16);
             DayZeroScene scene = new DayZeroScene();
             Color accent = ((SolidColorBrush)window.Resources["Accent"]).Color;

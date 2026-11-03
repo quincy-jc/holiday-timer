@@ -4,7 +4,7 @@ A native Windows countdown with a live glass panel, animated orb and tray icon. 
 
 ## Install from one file
 
-Share `dist/day-zero-setup/HolidayTimerSetup.exe` for version 1.10.0. It upgrades the existing installation and preserves saved preferences.
+Share `dist/custom-day-zero-setup/HolidayTimerSetup.exe` for version 1.10.1. It upgrades the existing installation and preserves saved preferences.
 
 The setup installs for the current Windows user at `%LOCALAPPDATA%\Programs\HolidayTimer`. On Windows 11 it needs no administrator password, restart, or internet connection. It adds a Start menu shortcut and **Holiday Timer** to **Settings → Apps → Installed apps**, where you can choose **Uninstall**.
 
@@ -14,9 +14,9 @@ The single setup file contains the app, configuration, software licence, and fon
 
 ## Open the portable build
 
-The current portable app is `dist/day-zero/HolidayTimer.exe`. Keep its configuration and licences beside it. Prior builds remain in their existing folders.
+The current portable app is `dist/custom-day-zero/HolidayTimer.exe`. Keep its configuration and licences beside it. Prior builds remain in their existing folders.
 
-If another copy is running, **save any edits you want to keep**, then choose **Exit Holiday Timer** from its system tray menu. Open `dist/day-zero/HolidayTimer.exe`. The app is single-instance: opening another copy while the old one is running activates the existing app.
+If another copy is running, **save any edits you want to keep**, then choose **Exit Holiday Timer** from its system tray menu. Open `dist/custom-day-zero/HolidayTimer.exe`. The app is single-instance: opening another copy while the old one is running activates the existing app.
 
 Keep `HolidayTimer.exe.config`, `LICENSE.txt` and `Inter-LICENSE.txt` beside the executable. Inter Display is bundled, and the app uses the .NET Framework included with Windows 11.
 
@@ -24,7 +24,7 @@ Enter the holiday name, date, and 24-hour time. Choose a unit, adjust appearance
 
 The date picker matches your Dark/Light scheme. Monday-first weeks keep weekend columns together; NSW public holidays are marked with named tooltips, and your selected celebration date stays distinct. Arrow keys and month/year navigation remain available. Select **NSW holidays…** beside the date field to choose an upcoming holiday, or refresh published dates from the NSW Government. Choosing a holiday fills the draft; **Save countdown** commits it.
 
-If no countdown has been set, the gadget starts with the next NSW statewide public holiday. After a saved event arrives and its celebration is dismissed, the gadget can switch to the next public holiday. An enabled Day Zero reveal keeps a saved holiday for its first sign-in on that date. Public holiday countdowns start at midnight in the computer’s local time zone.
+If no countdown has been set, the gadget starts with the next NSW statewide public holiday. After a saved event arrives and its celebration is dismissed, the gadget can switch to the next public holiday. An enabled Day Zero reveal keeps a custom event for its first sign-in on that date. Public holiday countdowns start at midnight in the computer’s local time zone.
 
 The built-in calendar covers 2024–2031. Published NSW dates are included through 2027; later dates are estimates based on recurring rules and are labelled accordingly. **Refresh holidays** checks the official NSW Government page only when clicked. The last successfully refreshed dates remain available offline if a later refresh fails. Bank Holiday and local-only events are excluded. Dates outside calendar coverage remain selectable for elapsed countdowns.
 
@@ -67,7 +67,7 @@ Choose **Download and install**, save any settings edits, and confirm. The app v
 
 An existing 1.7.0 or older installation needs one manual install of the current version to gain working update checks; the 1.7.0 updater could not contact GitHub. Exit the old app from its tray menu before running that installer. Version 1.7.1 and later can update from within the app. Portable copies open the release page instead of silently installing to a different location.
 
-For a later release, update the assembly and installer version numbers in `src/AssemblyInfo.cs` and `installer/HolidayTimer.iss`, build and test the setup, and publish it as `HolidayTimerSetup.exe` on a non-prerelease GitHub release with a matching stable three-part tag such as `v1.10.0`. GitHub must expose the asset's SHA-256 digest before the app offers the release.
+For a later release, update the assembly and installer version numbers in `src/AssemblyInfo.cs` and `installer/HolidayTimer.iss`, build and test the setup, and publish it as `HolidayTimerSetup.exe` on a non-prerelease GitHub release with a matching stable three-part tag such as `v1.10.1`. GitHub must expose the asset's SHA-256 digest before the app offers the release.
 
 ## Music response
 
@@ -99,11 +99,11 @@ Click the calendar tray icon to show the countdown. Right-click for preferences,
 
 ## Celebrations
 
-At the selected time, the app celebrates once for that target. It waits for an available desktop if Windows is locked or asleep. On the holiday date, an enabled Day Zero reveal can also celebrate an arrival missed before sign-in. Older expired countdowns advance to the next NSW public holiday.
+At the selected time, the app celebrates once for that target. It waits for an available desktop if Windows is locked or asleep. On the date of a custom event, an enabled Day Zero reveal can also celebrate an arrival missed before sign-in. Older expired countdowns advance to the next NSW public holiday.
 
 Choose **Fireworks + confetti** for glowing shells, curved trails and falling embers, or **Flowers + confetti** for bouquets that rise and scatter petals. Both follow the selected scheme and play behind the text on your desktop until dismissed. **Preview celebration** tries your current selection.
 
-**Show the Day Zero starburst** opens a black fullscreen scene on the first sign-in or unlock on your saved holiday date. A particle ring beats for five seconds, gathers into a bright dot, then opens into one continuous outward burst over a sky of softly drifting galaxies. Move the pointer through **Today is the day!** to draw dust out of the letters, then move away to let it settle back. Press Escape on any screen to leave. **Preview Day Zero** plays the scene without marking the day's celebration as seen. If sign-in and arrival coincide, one reveal celebrates both.
+**Show the Day Zero starburst** opens a black fullscreen scene on the first sign-in or unlock on the date of a saved custom countdown. A holiday picked from the NSW calendar or loaded automatically uses the regular arrival celebration. A custom event can still show Day Zero if it falls on the same date as a public holiday. A particle ring beats for five seconds, gathers into a bright dot, then bursts outward against black. After the streaks fade, the stars and drifting galaxies come into view. Move the pointer through **Today is the day!** to draw dust out of the letters, then move away to let it settle back. Press Escape on any screen to leave. **Preview Day Zero** plays the scene without marking the day's celebration as seen. If sign-in and arrival coincide, one reveal celebrates both.
 
 **Always animate celebrations** defaults to On for new installations and for older settings without this preference. If you previously saved Off, upgrading preserves that choice. The option plays celebration effects when Windows animation effects are off. High Contrast uses a text-only greeting.
 
@@ -126,10 +126,10 @@ Preferences are stored at `%LOCALAPPDATA%\HolidayTimer\settings.json`, with the 
 Build and run isolated checks without replacing the preserved original:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 -Test -OutputDirectory dist\day-zero
+powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 -Test -OutputDirectory dist\custom-day-zero
 ```
 
-`dist/day-zero/HolidayTimer.exe --render-preview` renders the actual WPF layouts into the updated build's `previews` folder without changing personal preferences or login registration. Layout captures use mock desktop backdrops; music examples use synthetic signals. Live Windows blur and actual audio capture have separate native evidence. See `VERIFICATION.md` for the current checks and evidence.
+`dist/custom-day-zero/HolidayTimer.exe --render-preview` renders the actual WPF layouts into the updated build's `previews` folder without changing personal preferences or login registration. Layout captures use mock desktop backdrops; music examples use synthetic signals. Live Windows blur and actual audio capture have separate native evidence. See `VERIFICATION.md` for the current checks and evidence.
 
 To build the single-file setup and run the application and isolated installation checks:
 

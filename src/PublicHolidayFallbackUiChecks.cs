@@ -29,6 +29,7 @@ namespace HolidayTimer
 
                 AppSettings future = original.Copy();
                 future.IsConfigured = true; future.AutomaticPublicHoliday = false; future.PublicHolidayKey = null; future.HolidayName = "A future custom event";
+                future.DayZeroEnabled = true; future.MorningGreeting = false; future.LastDayZeroDate = null; future.LastArrivalTarget = null;
                 future.TargetLocal = now.AddDays(22).ToString(CountdownCalculator.TargetFormat, CultureInfo.InvariantCulture);
                 app.Settings = future; store.Save(future);
                 string saved = File.ReadAllText(store.FilePath);
@@ -131,12 +132,31 @@ namespace HolidayTimer
                 NswPublicHolidays.SaveCorrection(app.PublicHolidayCacheDirectory, chosen.Key, null, null);
                 app.PublicHolidaysRefreshed();
 
+                app.Settings = store.Load();
+                DateTime unlock = chosen.Date.AddHours(8);
+                app.ArmDayZeroSession(); app.ProcessCelebrations(unlock);
+                Check(app.Greeting == null && store.Load().LastDayZeroDate == null && store.Load().LastArrivalTarget == null,
+                    "An explicitly selected NSW holiday with a custom time skips Day Zero before arrival");
+                CheckCalendarArrivalAfterUnlock(app, store, chosen.Date.AddHours(13));
+
+                app.OpenSettings(); form = app.SettingsWindow;
+                Layouts.Find<TextBox>(form, "HolidayName").Text = "Our anniversary";
+                Layouts.Find<TextBox>(form, "HolidayTime").Text = "17:00";
+                Check(app.SaveForm(form) && !app.Settings.AutomaticPublicHoliday && store.Load().PublicHolidayKey == null,
+                    "Saving a personal event on the same calendar date makes an independent countdown");
+                app.ArmDayZeroSession(); app.ProcessCelebrations(unlock);
+                Check(app.IsDayZeroOpen && store.Load().LastDayZeroDate == unlock.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    "A personal countdown on an NSW holiday date still gets its Day Zero reveal");
+                app.CloseGreetings();
+
                 app.Settings = future.Copy(); store.Save(app.Settings);
                 app.OpenSettings(); form = app.SettingsWindow;
                 Layouts.Find<TextBox>(form, "HolidayTime").Text = "";
                 Check(app.SaveForm(form) && app.Settings.AutomaticPublicHoliday && app.Settings.HolidayName == next.Name &&
                     store.Load().TargetLocal == next.Date.ToString(CountdownCalculator.TargetFormat, CultureInfo.InvariantCulture),
                     "Saving without a time commits the next public holiday instead of an empty countdown");
+                app.Settings = store.Load();
+                CheckCalendarArrivalAfterUnlock(app, store, next.Date.AddHours(8));
 
                 string beforeDefaultArrival = File.ReadAllText(store.FilePath);
                 AppSettings firstRun = new AppSettings { IsConfigured = false, AutomaticPublicHoliday = true,
@@ -165,6 +185,20 @@ namespace HolidayTimer
                 app.SessionAvailable = true; store.Save(original); app.RefreshCountdown();
                 if (running) timer.Start();
             }
+        }
+
+        private static void CheckCalendarArrivalAfterUnlock(HolidayApplication app, SettingsStore store, DateTime unlock)
+        {
+            string target = app.Settings.TargetLocal;
+            Check(!app.EnsurePublicHolidayFallback(unlock, true) && app.Settings.TargetLocal == target,
+                "A public holiday due earlier today stays selected for its regular arrival");
+            app.ArmDayZeroSession(); app.ProcessCelebrations(unlock);
+            AppSettings saved = store.Load();
+            Check(!app.IsDayZeroOpen && app.Greeting != null && app.Greeting.IsVisible &&
+                Layouts.Find<TextBlock>(app.Greeting, "GreetingHoliday").Text == app.Settings.HolidayName &&
+                saved.LastArrivalTarget == target && saved.LastDayZeroDate == null,
+                "A saved calendar countdown gets its ordinary arrival after unlock without consuming Day Zero");
+            app.CloseGreetings();
         }
     }
 }

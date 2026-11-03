@@ -189,7 +189,7 @@
                   <CheckBox x:Name="StartAtLogin" Content="Launch when I _sign in"/><CheckBox x:Name="MorningGreeting" Content="Celebrate each _morning"/>
                   <TextBlock Text="A fullscreen celebration, once between 5 am and noon." Foreground="{DynamicResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="44,3,0,0"/>
                   <CheckBox x:Name="DayZeroEnabled" Content="Show the Day _Zero starburst" Margin="0,8,0,0"/>
-                  <TextBlock Text="Once when you sign in or unlock on the holiday date." Foreground="{DynamicResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="44,3,0,0"/>
+                  <TextBlock Text="Once when you sign in or unlock on the date of a custom countdown. NSW calendar holidays use the regular celebration." Foreground="{DynamicResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="44,3,0,0"/>
                   <StackPanel Margin="0,18,0,0">
                     <Label Content="Celebration _effect" Target="{Binding ElementName=CelebrationStyle}"/><ComboBox x:Name="CelebrationStyle" AutomationProperties.Name="Celebration effect"><ComboBoxItem Content="Fireworks + confetti"/><ComboBoxItem Content="Flowers + confetti"/></ComboBox>
                     <TextBlock x:Name="CelebrationDescription" Text="Layered fireworks with glowing trails and falling confetti. Plays until you dismiss it." Foreground="{DynamicResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,0"/>

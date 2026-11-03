@@ -15,6 +15,8 @@ namespace HolidayTimer
         private const double Tau = Math.PI * 2;
         private const double BurstTime = 8.45;
         private const double BurstDuration = 7.4;
+        private const double BurstEnd = BurstTime + BurstDuration;
+        private const double DustFadeDuration = 1.6;
         private const double TitleStart = 13.0;
         // Different diffraction spikes ignite at different times. During
         // release their tails lift free of the core and run off the frame.
@@ -29,13 +31,17 @@ namespace HolidayTimer
         private readonly Pen[,,] lines = new Pen[Tints, Shades, 4];
         private readonly Brush[] bloom = new Brush[Tints];
         private readonly Color[] palette = new Color[Tints];
-        private readonly Star[] stars = new Star[630];
+        private const int ForegroundStars = 630;
+        private const int FieldStarCount = 1450;
+        private readonly Star[] stars = new Star[FieldStarCount];
+        private readonly Vector[] fieldOffsets = new Vector[FieldStarCount];
+        private double lastFieldFrame = -1;
         private readonly Star[] rays = new Star[1400];
         private BitmapSource ringBody, ringDust, titleImage, flareFan;
         private BitmapSource deepSky;
         private readonly GalaxySprite[] galaxies = new GalaxySprite[4];
-        private BitmapSource[] wholeTitleTiles, anchorTiles;
-        private bool[] movingTile;
+        private TitleTile[] titleTiles;
+        private int[] incomingGrains;
         private Point[] grainOffsets;
         private const int TileWidth = 54;
         private double lastTitleFrame = -1;
@@ -62,6 +68,16 @@ namespace HolidayTimer
         {
             internal BitmapSource Image;
             internal Rect Bounds;
+        }
+
+        private sealed class TitleTile
+        {
+            internal int X, Width, Padding;
+            internal readonly List<int> Grains = new List<int>();
+            internal BitmapSource Rest;
+            internal bool Displaced;
+            internal WriteableBitmap Motion;
+            internal byte[] Pixels;
         }
 
         internal DayZeroScene()
@@ -93,11 +109,17 @@ namespace HolidayTimer
                 }
             }
             Random random = new Random(seed);
+            Random faintStarSeed = new Random(seed ^ 38731);
             for (int i = 0; i < stars.Length; i++)
-                stars[i] = new Star { X = random.NextDouble(), Y = random.NextDouble(),
-                    Depth = random.NextDouble(), Phase = Tau * random.NextDouble(),
-                    Drift = random.NextDouble(), Speed = .58 + random.NextDouble() * .97,
-                    Delay = random.NextDouble(), Tint = random.Next(Tints) };
+            {
+                Random source = i < ForegroundStars ? random : faintStarSeed;
+                stars[i] = new Star { X = source.NextDouble(), Y = source.NextDouble(),
+                    Depth = source.NextDouble() * (i < ForegroundStars ? 1 : .75), Phase = Tau * source.NextDouble(),
+                    Drift = source.NextDouble(), Speed = .58 + source.NextDouble() * .97,
+                    Delay = source.NextDouble(), Tint = source.Next(Tints) };
+            }
+            Array.Clear(fieldOffsets, 0, fieldOffsets.Length);
+            lastFieldFrame = -1;
             Random raySeed = new Random(seed ^ 7319);
             for (int i = 0; i < rays.Length; i++)
             {
@@ -151,12 +173,13 @@ namespace HolidayTimer
             if (primary && t < 6.75) DrawRing(dc, center, t);
             if (t > 6.05)
             {
-                DrawStarField(dc, w, h, t, scale);
-                if (t < BurstTime + BurstDuration)
+                if (t > BurstEnd) DrawStarField(dc, w, h, t, scale);
+                if (t < BurstEnd)
                 {
                     DrawWarp(dc, w, h, center, t);
                     if (primary) DrawFlare(dc, center, w, h, t);
                 }
+                DrawCoolingEmbers(dc, w, h, center, t);
                 if (primary && t > TitleStart) DrawTitle(dc, w, h, t);
             }
             dc.Pop();
@@ -237,17 +260,53 @@ namespace HolidayTimer
                 int breadth = s.Depth > .89 ? 3 : s.Depth > .63 ? 2 : 1;
                 dc.DrawLine(lines[s.Tint, Shade(light * .65), breadth], tip, head);
                 dc.DrawLine(lines[3, Shade(light), breadth - 1], head + (tip - head) * .69, head);
-                if (s.Depth > .91) Glow(dc, s.Tint, head, 2.8 + s.Depth, 2.8 + s.Depth);
+                if (s.Depth > .91)
+                {
+                    dc.PushOpacity(fade * Math.Min(1, flight * 4));
+                    Glow(dc, s.Tint, head, 2.8 + s.Depth, 2.8 + s.Depth);
+                    dc.Pop();
+                }
             }
+        }
+
+        // Fired with the other rays, a few distant embers slow into the first
+        // points of the new sky. Their heads never reset at the scene boundary.
+        private void DrawCoolingEmbers(DrawingContext dc, double w, double h, Point center, double t)
+        {
+            double age = t - BurstTime, settled = t - BurstEnd;
+            if (age <= 0 || settled >= DustFadeDuration) return;
+            double progress = Clamp(age / BurstDuration);
+            double radius = 1 - (1 - progress) * (1 - progress);
+            double trail = .085 * progress * (1 - progress);
+            dc.PushOpacity(Ease(age / .65) * (1 - Ease(settled / DustFadeDuration)));
+            for (int i = 0; i < ForegroundStars; i += 11)
+            {
+                Star s = stars[i];
+                Vector path = FieldStarPosition(s, w, h, age) - center;
+                Point head = center + path * radius;
+                if (head.X < -8 || head.Y < -8 || head.X > w + 8 || head.Y > h + 8) continue;
+                double light = .26 + .44 * s.Depth;
+                dc.DrawLine(lines[s.Tint, Shade(light * .6), 0], head - path * trail, head);
+                double size = .6 + s.Depth * .78;
+                dc.DrawEllipse(inks[s.Tint, Shade(light)], null, head, size, size);
+            }
+            dc.Pop();
+        }
+
+        private static Point FieldStarPosition(Star s, double w, double h, double age)
+        {
+            return new Point(s.X * w + Math.Sin(s.Phase + age * .09) * (1 + s.Depth * 7),
+                s.Y * h + Math.Cos(s.Phase + age * .073) * (1 + s.Depth * 6));
         }
 
         private void DrawStarField(DrawingContext dc, double w, double h, double t, double scale)
         {
-            double visible = Ease((t - (BurstTime - .3)) / 2.8);
-            if (visible <= 0) return;
-            dc.PushOpacity(visible);
+            double settled = t - BurstEnd;
+            dc.PushOpacity(Ease((settled - .12) / 2.48));
             dc.DrawImage(deepSky, new Rect(0, 0, w, h));
+            dc.Pop();
             double drift = t - BurstTime;
+            dc.PushOpacity(Ease((settled - .40) / 2.50));
             for (int i = 0; i < galaxies.Length; i++)
             {
                 GalaxySprite galaxy = galaxies[i];
@@ -257,24 +316,57 @@ namespace HolidayTimer
                 dc.DrawImage(galaxy.Image, new Rect(bounds.X * w + x / scale, bounds.Y * h + y / scale,
                     bounds.Width * w, bounds.Height * h));
             }
+            dc.Pop();
+            dc.PushOpacity(Ease(settled / DustFadeDuration));
             Point? mouse = still || !pointer.HasValue ? (Point?)null :
                 new Point(pointer.Value.X / scale, pointer.Value.Y / scale);
+            if (still || t < lastFieldFrame) Array.Clear(fieldOffsets, 0, fieldOffsets.Length);
+            double delta = lastFieldFrame < 0 ? 1.0 / 30 : Math.Max(0, Math.Min(t - lastFieldFrame, .12));
+            double catchup = 1 - Math.Exp(-delta * 8.5);
+            lastFieldFrame = t;
+            const double reach = 157;
             for (int i = 0; i < stars.Length; i++)
             {
                 Star s = stars[i];
-                Point pos = new Point(s.X * w + Math.Sin(s.Phase + drift * .09) * (1 + s.Depth * 7),
-                                      s.Y * h + Math.Cos(s.Phase + drift * .073) * (1 + s.Depth * 6));
-                double attracted = 0;
+                Point pos = FieldStarPosition(s, w, h, drift);
+                Vector target = new Vector();
                 if (mouse.HasValue)
                 {
-                    Vector offset = mouse.Value - pos;
-                    double weight = Math.Max(0, 1 - offset.Length / 116);
-                    attracted = weight * weight * s.Depth;
-                    pos += offset * (attracted * .66);
+                    Vector toward = mouse.Value - pos;
+                    if (toward.LengthSquared < reach * reach)
+                        target = toward * (Ease(1 - toward.Length / reach) * (.36 + .47 * s.Depth));
                 }
-                double light = .19 + .58 * s.Depth + .10 * Math.Sin(drift * s.Speed + s.Phase) + attracted * .4;
+                Vector offset = fieldOffsets[i];
+                if (target.LengthSquared > 0 || offset.LengthSquared > 0)
+                {
+                    offset += (target - offset) * catchup;
+                    if (offset.LengthSquared < .01 && target.LengthSquared < .01) offset = new Vector();
+                    fieldOffsets[i] = offset;
+                    pos += offset;
+                }
+                double attracted = Math.Min(1, offset.Length / 30);
+                // Each star has its own rise time and phase. Only a few show a
+                // stronger glint, so the settled sky never pulses as a whole.
+                double glimmer = .50 + .33 * Math.Sin(drift * (.51 + s.Drift * .72) + s.Phase)
+                    + .17 * Math.Sin(drift * (.76 + s.Speed * .47) + 1.73 * s.Phase);
+                bool scintillates = i % 13 == 0;
+                double glint = scintillates ? glimmer * glimmer * glimmer : 0;
+                double light = .12 + .44 * s.Depth + (.18 + .22 * s.Depth) * glimmer + .30 * glint + attracted * .4;
                 double rad = .35 + s.Depth * s.Depth * 1.1;
-                if (s.Depth > .967 || attracted > .28) Glow(dc, s.Tint, pos, rad * 4, rad * 4);
+                if (i >= ForegroundStars)
+                {
+                    // The deeper stars arrive gradually and stay fainter than the foreground.
+                    double reveal = Ease((settled - s.Delay * 1.6) / 1.5);
+                    light *= .80 * reveal;
+                    glint *= reveal;
+                    rad *= .90;
+                }
+                if (s.Depth > .967 || attracted > .28 || glint > .4)
+                {
+                    dc.PushOpacity(Clamp(.18 + .56 * glimmer + .34 * glint + .65 * attracted));
+                    Glow(dc, s.Tint, pos, rad * 4, rad * 4);
+                    dc.Pop();
+                }
                 dc.DrawEllipse(inks[s.Tint, Shade(light)], null, pos, rad, rad);
             }
             dc.Pop();
@@ -447,87 +539,111 @@ namespace HolidayTimer
             double size = Math.Min(w * .72 / titleImage.PixelWidth, h * .123 / titleImage.PixelHeight);
             double left = (w - titleImage.PixelWidth * size) / 2;
             double top = (h - titleImage.PixelHeight * size) / 2;
+            Rect bounds = new Rect(left, top, titleImage.PixelWidth * size, titleImage.PixelHeight * size);
+            bool moving = UpdateTitleDust(w, bounds, size, t);
             double settled = Ease((t - TitleStart - 2.15) / 1.85);
             if (settled > 0)
             {
                 dc.PushOpacity(settled);
-                DrawSettledTitle(dc, w, left, top, size, t);
+                if (!moving) dc.DrawImage(titleImage, bounds);
+                else foreach (TitleTile tile in titleTiles)
+                {
+                    BitmapSource image = tile.Displaced ? (BitmapSource)tile.Motion : tile.Rest;
+                    int pad = tile.Displaced ? tile.Padding : 2;
+                    dc.DrawImage(image, new Rect(left + (tile.X - pad) * size, top - pad * size,
+                        image.PixelWidth * size, image.PixelHeight * size));
+                }
                 dc.Pop();
             }
             if (settled >= 1) return;
             dc.PushOpacity(1 - settled);
-            for (int i = 0; i < titleGrains.Length; i++)
+            foreach (int index in incomingGrains)
             {
-                TitleGrain g = titleGrains[i];
+                TitleGrain g = titleGrains[index];
                 double arrival = Clamp((t - TitleStart - g.Delay * 1.16) / 2.35);
                 if (arrival <= 0) continue;
                 double spread = 1 - Ease(arrival);
                 double angle = g.Theta + spread * .52;
                 double distance = g.Reach * spread;
-                Point pos = new Point(left + g.X * size + distance * Math.Cos(angle),
-                                      top + g.Y * size + distance * Math.Sin(angle));
+                Point offset = grainOffsets[index];
+                Point pos = new Point(left + g.X * size + distance * Math.Cos(angle) + offset.X,
+                                      top + g.Y * size + distance * Math.Sin(angle) + offset.Y);
                 double r = Math.Max(.36, size * g.Weight);
                 dc.DrawEllipse(inks[g.Tint, Shade((.24 + .73 * arrival) * Math.Min(1, arrival * 4))], null, pos, r, r);
             }
             dc.Pop();
         }
 
-        private void DrawSettledTitle(DrawingContext dc, double w, double left, double top, double size, double t)
+        private bool UpdateTitleDust(double w, Rect bounds, double size, double t)
         {
-            Rect bounds = new Rect(left, top, titleImage.PixelWidth * size, titleImage.PixelHeight * size);
             if (still || t < lastTitleFrame)
             {
                 Array.Clear(grainOffsets, 0, grainOffsets.Length);
-                Array.Clear(movingTile, 0, movingTile.Length);
+                foreach (TitleTile tile in titleTiles) tile.Displaced = false;
             }
             double delta = lastTitleFrame < 0 ? 1.0 / 30 : Math.Min(.12, Math.Max(0, t - lastTitleFrame));
             lastTitleFrame = t;
-            Point? mouse = !still && pointer.HasValue ? (Point?)(new Point(pointer.Value.X * w / ActualWidth,
-                pointer.Value.Y * w / ActualWidth)) : null;
             const double radius = 100;
-            bool near = mouse.HasValue && mouse.Value.X > bounds.Left - radius && mouse.Value.X < bounds.Right + radius &&
-                mouse.Value.Y > bounds.Top - radius && mouse.Value.Y < bounds.Bottom + radius;
-            if (!near && Array.IndexOf(movingTile, true) < 0) { dc.DrawImage(titleImage, bounds); return; }
-            Array.Clear(movingTile, 0, movingTile.Length);
             double catchup = 1 - Math.Exp(-delta * 11);
-            for (int i = 0; i < titleGrains.Length; i++)
+            Point? mouse = !still && pointer.HasValue ? (Point?)new Point(pointer.Value.X * w / ActualWidth - bounds.Left,
+                pointer.Value.Y * w / ActualWidth - bounds.Top) : null;
+            bool anyMoving = false;
+            foreach (TitleTile tile in titleTiles)
             {
-                TitleGrain g = titleGrains[i];
-                double dx = 0, dy = 0;
-                if (near)
+                bool near = mouse.HasValue && mouse.Value.X >= tile.X * size - radius &&
+                    mouse.Value.X <= (tile.X + tile.Width) * size + radius &&
+                    mouse.Value.Y >= -radius && mouse.Value.Y <= bounds.Height + radius;
+                if (!near && !tile.Displaced) continue;
+                tile.Displaced = false;
+                foreach (int index in tile.Grains)
                 {
-                    double mx = mouse.Value.X - left - g.X * size, my = mouse.Value.Y - top - g.Y * size;
-                    double r2 = mx * mx + my * my;
-                    if (r2 < radius * radius)
+                    TitleGrain g = titleGrains[index];
+                    double dx = 0, dy = 0;
+                    if (near)
                     {
-                        double pull = Ease(1 - Math.Sqrt(r2) / radius) * (.74 + g.Delay * .4);
+                        double mx = mouse.Value.X - g.X * size, my = mouse.Value.Y - g.Y * size;
+                        double distance = Math.Sqrt(mx * mx + my * my);
+                        double pull = (1 - Ease((distance / radius - .28) / .72)) * (.96 + g.Delay * .08);
                         dx = mx * pull;
-                        dy = (my - 3.8 * g.Weight) * pull;
+                        dy = (my - 2 * g.Weight) * pull;
                     }
+                    Point last = grainOffsets[index];
+                    Point offset = new Point(last.X + (dx - last.X) * catchup, last.Y + (dy - last.Y) * catchup);
+                    if (Math.Abs(offset.X) + Math.Abs(offset.Y) <= .10) offset = new Point();
+                    else tile.Displaced = true;
+                    grainOffsets[index] = offset;
                 }
-                Point last = grainOffsets[i];
-                Point offset = new Point(last.X + (dx - last.X) * catchup, last.Y + (dy - last.Y) * catchup);
-                if (Math.Abs(offset.X) + Math.Abs(offset.Y) > .18) movingTile[(int)g.X / TileWidth] = true;
-                else offset = new Point();
-                grainOffsets[i] = offset;
+                if (tile.Displaced)
+                {
+                    PaintDisplacedTile(tile, size, radius);
+                    anyMoving = true;
+                }
             }
-            // Reuse the intact bitmap everywhere except the few tiles brushed by the cursor.
-            if (Array.IndexOf(movingTile, true) < 0) { dc.DrawImage(titleImage, bounds); return; }
-            for (int k = 0; k < wholeTitleTiles.Length; k++)
+            return anyMoving;
+        }
+
+        private void PaintDisplacedTile(TitleTile tile, double size, double radius)
+        {
+            // The strongest pull is less than half the influence radius. Padding
+            // lets grains leave their home tile and even the top/bottom of a letter.
+            int pad = 2 + (int)Math.Ceiling(.5 * radius / size);
+            if (tile.Motion == null || tile.Padding < pad)
             {
-                BitmapSource tile = movingTile[k] ? anchorTiles[k] : wholeTitleTiles[k];
-                dc.DrawImage(tile, new Rect(left + k * TileWidth * size, top, tile.PixelWidth * size, bounds.Height));
+                tile.Padding = pad;
+                tile.Motion = new WriteableBitmap(tile.Width + 2 * pad, titleImage.PixelHeight + 2 * pad,
+                    96, 96, PixelFormats.Pbgra32, null);
+                tile.Pixels = new byte[tile.Motion.PixelWidth * tile.Motion.PixelHeight * 4];
             }
-            for (int i = 0; i < titleGrains.Length; i++)
+            Array.Clear(tile.Pixels, 0, tile.Pixels.Length);
+            foreach (int index in tile.Grains)
             {
-                TitleGrain g = titleGrains[i];
-                if (!movingTile[(int)g.X / TileWidth]) continue;
-                Point offset = grainOffsets[i];
-                Point p = new Point(left + g.X * size + offset.X, top + g.Y * size + offset.Y);
-                double r = g.Weight * size;
-                double light = g.Light + Math.Min(.23, (Math.Abs(offset.X) + Math.Abs(offset.Y)) * .011);
-                dc.DrawEllipse(inks[g.Tint, Shade(light)], null, p, r, r);
+                TitleGrain g = titleGrains[index]; Point offset = grainOffsets[index];
+                Splat(tile.Pixels, tile.Motion.PixelWidth, tile.Motion.PixelHeight,
+                    g.X - tile.X + tile.Padding + offset.X / size, g.Y + tile.Padding + offset.Y / size,
+                    g.Weight, palette[g.Tint], g.Light);
             }
+            tile.Motion.WritePixels(new Int32Rect(0, 0, tile.Motion.PixelWidth, tile.Motion.PixelHeight),
+                tile.Pixels, tile.Motion.PixelWidth * 4, 0);
         }
 
         // Rasterise two seeded dust bands once. The heart beat moves the soft
@@ -554,7 +670,8 @@ namespace HolidayTimer
         }
 
         // Flatten the typeset outlines once and scan their inside intervals.
-        // The settled letters are entirely made of the same grains that fly in.
+        // Every grain belongs to exactly one tile. Unbrushed tiles reuse their
+        // resting image; a brushed tile is redrawn from those same grains.
         private void CreateTitle(Random random)
         {
             FormattedText label = new FormattedText(Message, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
@@ -564,7 +681,9 @@ namespace HolidayTimer
             Rect bounds = glyphs.Bounds;
             int width = (int)Math.Ceiling(bounds.Width) + 10, height = (int)Math.Ceiling(bounds.Height) + 10;
             byte[] pixels = new byte[width * height * 4];
-            byte[] anchors = new byte[pixels.Length];
+            titleTiles = new TitleTile[(width + TileWidth - 1) / TileWidth];
+            for (int i = 0; i < titleTiles.Length; i++)
+                titleTiles[i] = new TitleTile { X = i * TileWidth, Width = Math.Min(TileWidth, width - i * TileWidth) };
             List<Point[]> contours = new List<Point[]>();
             foreach (PathFigure figure in glyphs.Figures)
             {
@@ -578,6 +697,7 @@ namespace HolidayTimer
                 if (vertices.Count > 2) contours.Add(vertices.ToArray());
             }
             List<TitleGrain> grains = new List<TitleGrain>();
+            List<int> incoming = new List<int>();
             List<double> crossings = new List<double>();
             for (double y = bounds.Top + .6; y < bounds.Bottom; y += 1.9)
             {
@@ -600,22 +720,26 @@ namespace HolidayTimer
                         int tint = random.Next(4); double weight = .68 + random.NextDouble() * .60;
                         double light = .64 + random.NextDouble() * .36;
                         Splat(pixels, width, height, tx, ty, weight, palette[tint], light);
-                        if (random.NextDouble() < .41) grains.Add(new TitleGrain { X = tx, Y = ty, Theta = random.NextDouble() * Tau,
+                        if (random.NextDouble() < .41) incoming.Add(grains.Count);
+                        titleTiles[(int)tx / TileWidth].Grains.Add(grains.Count);
+                        grains.Add(new TitleGrain { X = tx, Y = ty, Theta = random.NextDouble() * Tau,
                             Reach = 35 + random.NextDouble() * 165, Delay = random.NextDouble(), Tint = tint, Weight = weight, Light = light });
-                        else Splat(anchors, width, height, tx, ty, weight, palette[tint], light);
                     }
             }
             titleImage = Image(pixels, width, height); titleGrains = grains.ToArray();
-            BitmapSource anchorImage = Image(anchors, width, height);
-            int tiles = (width + TileWidth - 1) / TileWidth;
-            wholeTitleTiles = new BitmapSource[tiles]; anchorTiles = new BitmapSource[tiles];
-            for (int i = 0; i < tiles; i++)
+            incomingGrains = incoming.ToArray();
+            foreach (TitleTile tile in titleTiles)
             {
-                Int32Rect slice = new Int32Rect(i * TileWidth, 0, Math.Min(TileWidth, width - i * TileWidth), height);
-                wholeTitleTiles[i] = new CroppedBitmap(titleImage, slice); wholeTitleTiles[i].Freeze();
-                anchorTiles[i] = new CroppedBitmap(anchorImage, slice); anchorTiles[i].Freeze();
+                int tileWidth = tile.Width + 4, tileHeight = height + 4;
+                byte[] resting = new byte[tileWidth * tileHeight * 4];
+                foreach (int index in tile.Grains)
+                {
+                    TitleGrain g = titleGrains[index];
+                    Splat(resting, tileWidth, tileHeight, g.X - tile.X + 2, g.Y + 2, g.Weight, palette[g.Tint], g.Light);
+                }
+                tile.Rest = Image(resting, tileWidth, tileHeight);
             }
-            movingTile = new bool[tiles]; grainOffsets = new Point[titleGrains.Length]; lastTitleFrame = -1;
+            grainOffsets = new Point[titleGrains.Length]; lastTitleFrame = -1;
         }
 
         private static void Splat(byte[] pixels, int w, int h, double x, double y, double radius, Color color, double light)
